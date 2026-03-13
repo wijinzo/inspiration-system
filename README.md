@@ -51,34 +51,47 @@
 
 ## ⚙️ 快速上手
 
-### 1. 安裝環境
+### 1. 安裝環境與依賴
 ```bash
+# 建立虛擬環境
 python -m venv venv
+# Windows 啟動
 .\venv\Scripts\Activate.ps1
+# Mac/Linux 啟動: source venv/bin/activate
+
+# 安裝套件
 pip install -r requirements.txt
 ```
 
-### 2. 配置 API 金鑰
-在 `.env` 檔案中填入：
-```env
-GOOGLE_API_KEY=YOUR_GEMINI_KEY
-BRAVE_API_KEY=YOUR_BRAVE_KEY
-YOUTUBE_API_KEY=YOUR_YT_KEY
-```
-
-### 3. 配置監視頻道 (選配)
-至 `config.py` 修改 `TARGET_YOUTUBE_CHANNELS` 加入您想關注的頻道：
-```python
-TARGET_YOUTUBE_CHANNELS = [
-    {"id": "UCgdwtyqBunlRb-i-7PnCssQ", "name": "木棉花", "category": "anime"},
-]
-```
-
-### 4. 啟動服務
+### 2. 配置環境變數
+請複製 `.env.example` 並更名為 `.env`，填入您的金鑰：
 ```bash
+cp .env.example .env
+```
+檔案內容範例：
+```env
+GOOGLE_API_KEY=您的Gemini金鑰
+BRAVE_API_KEY=您的BraveSearch金鑰
+YOUTUBE_API_KEY=您的YouTube金鑰
+```
+
+### 3. 初始化資料庫與預熱趨勢 (建議)
+第一次使用，請先手動執行一次爬蟲，以建立資料庫與抓取初始靈感資料：
+```bash
+python crawlers/trend_crawler.py
+```
+
+### 4. 啟動 Web 儀表板
+```bash
+# 啟動後端服務
 python app.py
 ```
 啟動後訪問 `http://127.0.0.1:8000` 即可進入儀表板。
+
+---
+
+## 🎨 監視頻道配置 (選配)
+至 `config.py` 修改 `TARGET_YOUTUBE_CHANNELS` 加入您想監控的創作者頻道 ID。標記為 `anime` 的頻道將會自動觸發「動漫梗機制提取」。
 
 ---
 

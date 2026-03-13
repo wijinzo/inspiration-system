@@ -26,6 +26,8 @@ data/
 saved_hooks/
 *.json
 !README.md
+server.log
+.agent/
 
 # IDE 設定
 .vscode/
