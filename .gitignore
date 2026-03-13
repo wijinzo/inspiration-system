@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Databases
+*.db
+chroma_db/
+
+# Data & Logs
+data/trending_results.json
+server.log
+saved_hooks/
+
+# IDEs
+.vscode/
+.idea/
+.agent/
+.gemini/
