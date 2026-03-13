@@ -1,21 +1,33 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
+# 虛擬環境
 venv/
+ENV/
+.venv/
+bin/
+include/
+lib/
+share/
+pyvenv.cfg
+
+# 敏感資訊
 .env
 
-# Databases
-*.db
+# 快取與編譯檔案
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.ipynb_checkpoints/
+
+# 資料庫與本地數據
 chroma_db/
-
-# Data & Logs
-data/trending_results.json
-server.log
+articles.db
+data/
 saved_hooks/
+*.json
+!README.md
 
-# IDEs
+# IDE 設定
 .vscode/
 .idea/
-.agent/
-.gemini/
+.DS_Store

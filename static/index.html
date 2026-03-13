@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>雙軌科普腳本自動化引擎 V2</title>
+    <meta name="description" content="自動結合台灣時事與科學知識，生成 YouTube 腳本 Hook">
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+    <div class="app-container">
+
+        <!-- Header -->
+        <header class="header neon-glass">
+            <div class="logo-area">
+                <i class="fa-solid fa-atom pulse-icon"></i>
+                <h1>雙軌科普腳本自動化引擎</h1>
+            </div>
+            <p class="subtitle">V2 — pytrends × RSS × Multi-Agent Debate</p>
+        </header>
+
+        <!-- Controls -->
+        <section class="controls glass-panel">
+            <button id="generateBtn" class="btn primary-btn btn-glow">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> 啟動配對引擎
+            </button>
+            <button id="surpriseBtn" class="btn secondary-btn btn-glow" title="隨機抽配靈感火花">
+                <i class="fa-solid fa-slot-machine"></i> <i class="fa-solid fa-dice"></i> Surprise Me!
+            </button>
+            <div id="keywordsBadge" class="keywords-badge hidden"></div>
+        </section>
+
+        <!-- Error Display -->
+        <div id="errorBox" class="error-box glass-panel hidden">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span id="errorMessage"></span>
+            <button id="retryFromError" class="btn secondary-btn btn-small">
+                <i class="fa-solid fa-rotate-right"></i> 重試
+            </button>
+        </div>
+
+        <!-- Loader -->
+        <div id="loader" class="loader-container hidden">
+            <div class="spinner"></div>
+            <p id="loaderText" class="loader-text">連結台灣社群網絡...</p>
+        </div>
+
+        <!-- Main Dashboard -->
+        <main id="dashboard" class="dashboard grid-layout hidden" style="grid-template-columns: 1fr 1fr 1fr;">
+
+            <!-- Left: Trends -->
+            <div class="column trend-column glass-panel">
+                <h2><i class="fa-solid fa-newspaper text-gradient-orange"></i> 新聞與底層機制</h2>
+                <div id="trendList" class="card-list"></div>
+            </div>
+
+            <!-- Middle: Social Trends -->
+            <div class="column social-column glass-panel">
+                <h2><i class="fa-solid fa-fire text-gradient-red"></i> 社群時事 (YT/Dcard/PTT)</h2>
+                <div id="socialList" class="card-list"></div>
+            </div>
+
+            <!-- Right: Science -->
+            <div class="column science-column glass-panel">
+                <h2><i class="fa-solid fa-microscope text-gradient-blue"></i> 匹配的科學文獻池</h2>
+                <div id="scienceList" class="card-list"></div>
+            </div>
+
+            <!-- Bottom: Hook Result -->
+            <div class="bottom-panel glass-panel summary-card">
+                <div class="result-header">
+                    <h2><i class="fa-brands fa-youtube" style="color: #ff0000;"></i> YouTube 腳本開場白 (Hook)</h2>
+                    <div id="criticBadge" class="critic-badge"></div>
+                </div>
+
+                <!-- Quality Warning -->
+                <div id="qualityWarning" class="quality-warning hidden"></div>
+
+                <div class="hook-content">
+                    <blockquote id="hookText" class="hook-quote"></blockquote>
+                </div>
+
+                <!-- Source Articles -->
+                <div id="sourceArticles" class="source-articles-box"></div>
+
+                <!-- Critic Comment -->
+                <div class="reasoning-box">
+                    <h4><i class="fa-solid fa-brain"></i> 企劃底層邏輯</h4>
+                    <p id="reasoningText"></p>
+                </div>
+
+                <div id="criticDetail" class="critic-detail-box">
+                    <h4><i class="fa-solid fa-clipboard-check"></i> Critic Agent 審查</h4>
+                    <p id="criticComment"></p>
+                    <div id="criticBreakdown" class="breakdown-grid"></div>
+                </div>
+
+                <div class="action-footer">
+                    <button id="retryBtn" class="btn secondary-btn">
+                        <i class="fa-solid fa-rotate-right"></i> 重新生成
+                    </button>
+                    <button id="saveBtn" class="btn secondary-btn">
+                        <i class="fa-solid fa-save"></i> 儲存此靈感 (CSV)
+                    </button>
+                    <span id="saveStatus" class="status-msg"></span>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+
+</html>
