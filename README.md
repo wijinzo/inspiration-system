@@ -83,7 +83,8 @@ python crawlers/trend_crawler.py
 
 ### 4. 啟動 Web 儀表板
 ```bash
-# 啟動後端服務
+# 啟動後端服務 (要記得開虛擬環境)
+.\venv\Scripts\Activate.ps1
 python app.py
 ```
 啟動後訪問 `http://127.0.0.1:8000` 即可進入儀表板。
