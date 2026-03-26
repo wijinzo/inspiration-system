@@ -42,7 +42,10 @@ body {
 /* ═══ App Container Grid ═══ */
 .app-container {
     display: grid;
-    grid-template-rows: auto auto 1fr;  /* header / selection-bar / main */
+    grid-template-rows: auto auto 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    /* header / selection-bar / main */
+    width: 100vw;
     height: 100vh;
     overflow: hidden;
 }
@@ -52,6 +55,9 @@ body {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     overflow: hidden;
     gap: 0;
+    min-height: 0;
+    height: 100%;
+    /* 補上這個 */
 }
 
 /* Left/Right panels each scroll independently */
@@ -60,13 +66,20 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    min-height: 0;
+    height: 100%;
+    /* 補上這個 */
 }
 
-.panel-content,
-.result-area {
+.panel-content {
     flex: 1;
-    overflow-y: auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
 }
+
+
+
 
 /* Responsive: stack vertically below 1024px */
 @media (max-width: 1024px) {
@@ -74,9 +87,11 @@ body {
         grid-template-columns: 1fr;
         grid-template-rows: 50vh 1fr;
     }
+
     .selection-bar {
         flex-wrap: wrap;
     }
+
     .sel-actions {
         width: 100%;
         justify-content: flex-end;
@@ -142,9 +157,21 @@ body {
 }
 
 @keyframes pulse {
-    0% { transform: scale(1); opacity: 0.8; }
-    50% { transform: scale(1.1); opacity: 1; text-shadow: 0 0 15px #60a5fa; }
-    100% { transform: scale(1); opacity: 0.8; }
+    0% {
+        transform: scale(1);
+        opacity: 0.8;
+    }
+
+    50% {
+        transform: scale(1.1);
+        opacity: 1;
+        text-shadow: 0 0 15px #60a5fa;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 0.8;
+    }
 }
 
 /* ═══ Buttons ═══ */
@@ -223,6 +250,8 @@ body {
     border-bottom: 1px solid var(--border-color);
     /* Prevent layout shift */
     flex-wrap: nowrap;
+    min-width: 0;
+    width: 100%;
 }
 
 .sel-slot {
@@ -280,6 +309,8 @@ body {
 
 .sel-slot__value {
     flex: 1;
+    display: block;
+    min-width: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -296,7 +327,9 @@ body {
     color: inherit;
 }
 
-.sel-slot__clear:hover { opacity: 1; }
+.sel-slot__clear:hover {
+    opacity: 1;
+}
 
 .sel-arrow {
     color: var(--text-muted);
@@ -512,7 +545,9 @@ body {
     font-family: inherit;
 }
 
-.expand-toggle:hover { opacity: 1; }
+.expand-toggle:hover {
+    opacity: 1;
+}
 
 /* Mechanism Tags */
 .mechanism-tag {
@@ -572,10 +607,21 @@ body {
     text-decoration: underline;
 }
 
-.source-link-science { color: #60a5fa; }
-.source-link-science:hover { color: #93c5fd; }
-.source-link-trend { color: #f97316; }
-.source-link-trend:hover { color: #fb923c; }
+.source-link-science {
+    color: #60a5fa;
+}
+
+.source-link-science:hover {
+    color: #93c5fd;
+}
+
+.source-link-trend {
+    color: #f97316;
+}
+
+.source-link-trend:hover {
+    color: #fb923c;
+}
 
 /* Anime Meme Section */
 .anime-meme-section {
@@ -608,7 +654,9 @@ body {
     gap: 6px;
 }
 
-.anime-meme-content.hidden { display: none; }
+.anime-meme-content.hidden {
+    display: none;
+}
 
 .meme-item {
     padding: 6px 10px;
@@ -740,14 +788,24 @@ body {
     opacity: 0.6;
 }
 
-/* Result scrollable area */
+
 .result-area {
     flex: 1;
     overflow-y: auto;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
+    min-height: 0;
+    padding: 16px 16px 40px 16px;
+    /* 底部保留 40px 的舒適空間 */
+    display: block;
+    /* 絕對關鍵：捨棄 flex，回歸最穩定的 block */
+}
+
+/* 4. 用 margin-bottom 取代原本 flex 的 gap */
+.result-area>* {
+    margin-bottom: 16px;
+}
+
+.result-area>*:last-child {
+    margin-bottom: 0;
 }
 
 /* Science Core Box */
@@ -813,7 +871,9 @@ body {
     margin: 0;
 }
 
-.hook-quote.hidden { display: none; }
+.hook-quote.hidden {
+    display: none;
+}
 
 .hook-actions {
     padding: 8px 14px;
@@ -840,7 +900,9 @@ body {
     color: var(--text-muted);
 }
 
-.collapsible-header::-webkit-details-marker { display: none; }
+.collapsible-header::-webkit-details-marker {
+    display: none;
+}
 
 .collapsible-header:hover {
     color: var(--text-color);
@@ -1032,12 +1094,21 @@ details[open] .collapse-icon {
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 @keyframes pulse-text {
-    0%, 100% { opacity: 0.5; }
-    50% { opacity: 1; }
+
+    0%,
+    100% {
+        opacity: 0.5;
+    }
+
+    50% {
+        opacity: 1;
+    }
 }
 
 /* ═══ History Drawer ═══ */
@@ -1141,8 +1212,15 @@ details[open] .collapse-icon {
 
 /* ═══ Fade-in Animation ═══ */
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .fade-in {

@@ -99,10 +99,12 @@ async def generate_script(req: GenerateRequest):
         return {
             "status": "success",
             "science_core": result.get("science_core", "無科學核心內容"),
+            "reasoning": result.get("reasoning", "無企劃屬性邏輯"),
             "mechanism": result.get("mechanism", "未知機制"),
             "hooks": result.get("hooks", ["", "", ""]),
             "critic_score": result.get("critic_score", 0),
             "critic_breakdown": result.get("critic_breakdown", {}),
+            "critic_comment": result.get("critic_comment", ""),
             "quality_warning": quality_warning,
             "matched_trend": result.get("matched_trend", {}),
             "matched_science": result.get("matched_science", {}),
@@ -157,10 +159,12 @@ async def surprise_generate():
         return {
             "status": "success",
             "science_core": result.get("science_core", ""),
+            "reasoning": result.get("reasoning", "無企劃屬性邏輯"),
             "mechanism": result.get("mechanism", ""),
             "hooks": result.get("hooks", ["", "", ""]),
             "critic_score": result.get("critic_score", 0),
             "critic_breakdown": result.get("critic_breakdown", {}),
+            "critic_comment": result.get("critic_comment", ""),
             "matched_science": result.get("matched_science", {}),
             "matched_trend": result.get("matched_trend", {}),
             "matched_social": result.get("matched_social", {})

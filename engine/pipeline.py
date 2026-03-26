@@ -62,6 +62,7 @@ def run_v3_pipeline(locked_items: dict = None) -> dict:
     current_hook_json = ""
     current_score = 0
     breakdown = {}
+    critic_comment = ""
     attempts = 0
     
     while attempts < MAX_DEBATE_RETRIES:
@@ -80,6 +81,7 @@ def run_v3_pipeline(locked_items: dict = None) -> dict:
             critic_result = _run_critic(critic_llm, current_hook_json, science_item['mechanism'])
             current_score = critic_result.get("total_score", 0)
             breakdown = critic_result.get("breakdown", {})
+            critic_comment = critic_result.get("comment", "")
             
             print(f"   => Critic 評分: {current_score}/10")
             print(f"      - Science-First: {breakdown.get('science_first_score', 0)}/4")
@@ -99,10 +101,12 @@ def run_v3_pipeline(locked_items: dict = None) -> dict:
     # 解析 최종 JSON
     hooks = ["生成失敗", "生成失敗", "生成失敗"]
     science_core_text = "無核心分析"
+    reasoning_text = "無企劃屬性邏輯"
     try:
         if current_hook_json:
             parsed = json.loads(current_hook_json)
             science_core_text = parsed.get("science_core", science_core_text)
+            reasoning_text = parsed.get("reasoning", reasoning_text)
             hooks = parsed.get("hooks", hooks)
     except:
         pass
@@ -111,7 +115,9 @@ def run_v3_pipeline(locked_items: dict = None) -> dict:
         "passed": current_score >= CRITIC_THRESHOLD,
         "critic_score": current_score,
         "critic_breakdown": breakdown,
+        "critic_comment": critic_comment,
         "science_core": science_core_text,
+        "reasoning": reasoning_text,
         "hooks": hooks,
         "mechanism": science_item.get("mechanism", ""),
         "matched_science": science_item,
@@ -135,14 +141,10 @@ def _gather_target_data(locked_items: dict) -> dict:
     trend_db = store.fetch_latest_trends().get("data", [])
     if locked_items.get("trend_url"):
         result["trend"] = next((item for item in trend_db if item["url"] == locked_items["trend_url"]), None)
-    elif trend_db:
-        result["trend"] = trend_db[0]
         
     social_db = store.fetch_latest_social().get("data", [])
     if locked_items.get("social_url"):
         result["social"] = next((item for item in social_db if item["url"] == locked_items["social_url"]), None)
-    elif social_db:
-        result["social"] = social_db[0]
         
     return result
 
@@ -170,15 +172,17 @@ def _run_proposer(llm, context_str: str, core_mechanism: str) -> str:
 核心機制（絕對不能偏題）：{core_mechanism}
 
 任務要求：
-1. 先寫出一段紮實的【科學核心分析】(Science Core) 約 150-200 字，必須解釋 {core_mechanism} 到底是如何運作的，不能只有空殼。
-2. 基於這套科學邏輯，產出三個對應不同受眾的【Hook 引入視角】（純腦洞腳本開場口白，約80字內）。
+1. 先寫出一段紮實的【科學核心分析】(Science Core) 約 300 字，必須解釋 {core_mechanism} 到底是如何運作的，不能只有空殼。
+2. 基於這套科學邏輯，產出三個對應不同受眾的【Hook 引入視角】（純腦洞腳本開場口白，約150字內）。
    - Hook 1 (Humor/Daily): 結合時事或生活日常的幽默視角
    - Hook 2 (Anime/Meme): 結合動漫梗或網路迷因視角
    - Hook 3 (Mystery/Curiosity): 提供強烈反差感、懸疑感的視角
+3. 【企劃底層邏輯】(Reasoning) 約 100 字，說明你為何選擇這三個 Hook，以及科學如何轉化為內容的思考。
 
 以精確的 JSON 格式回傳，絕對不要包含任何 Markdown 標記，只需要以下結構：
 {{
   "science_core": "科學核心分析的內容...",
+  "reasoning": "企劃底層邏輯的內容...",
   "hooks": [
     "【生活幽默】Hook 1 的開場白...",
     "【動漫迷因】Hook 2 的開場白...",
@@ -206,7 +210,7 @@ def _run_critic(llm, generated_json_str: str, core_mechanism: str) -> dict:
 3. 格式正確性 (0-3 分)：是否有 3 個 Hook？
 
 你必須且只能回傳以下格式的純 JSON（不要加 markdown 標記、不要加任何說明文字）：
-{{"total_score": 8, "breakdown": {{"science_first_score": 3, "hook_appeal_score": 2, "format_score": 3}}, "comment": "評語..."}}"""
+{{"total_score": 10, "breakdown": {{"science_first_score": 4, "hook_appeal_score": 3, "format_score": 3}}, "comment": "評語..."}}"""
     )
     
     response = (prompt | llm).invoke({"generated_json_str": generated_json_str, "core_mechanism": core_mechanism})

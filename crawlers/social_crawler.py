@@ -142,33 +142,35 @@ def filter_and_extract_social_mechanisms(items: list) -> list:
 
     # 批次處理
     items_text = "\n".join([
-        f"[{i+1}] 頻道:{item['source']} | 種類:{item['category']} | 標題: {item['title']} | 摘要: {item['summary']}"
+        f"[ID: {i}] | 頻道:{item['source']} | 標題: {item['title']} | 摘要: {item['summary']}"
         for i, item in enumerate(items[:20])
     ])
 
     prompt = PromptTemplate.from_template(
-        """你是一位社群觀察家、動漫達人、也熟悉各種網路迷因。以下是各大 YouTube 頻道最新影片：
+        """你是一位熱愛上網的社群觀察家與動漫達人。以下是各大 YouTube 頻道最新影片：
         
 {items_text}
 
-請篩選出「有潛力與科學結合」的話題，並去除純粹的遊戲實況廢片或是無意義的預告片。
+請從中篩選出「有潛力的話題或迷因」。
+**注意：我不是要你找出科學機制！我要的是你幫我詳細解釋這個梗或話題！**
 
 對於每個入選的項目，請務必：
-1. 提取「話題梗」：
-   - 動漫類(anime)：提取經典名言、場景或現象
-   - 迷因類(meme, gaming_meme)：辨識影片背後引用的迷因、梗圖或網路流行語。如果光看標題不確定是什麼梗，請用你的知識去推測這個影片最可能在討論什麼迷因或現象
-   - 社群趨勢類(social_trend)：提取核心話題的文化現象
-2. 提供 2~3 個「相關話題」(related_topics)：該梗的延伸文化現象、類似的梗、或可結合的科學概念
+1. 提取與解釋「話題梗」：
+   - 辨識影片背後引用的動漫、迷因、現象或網路流行語。
+   - 請根據你的網路知識，**詳細解釋這個梗的來源、意思、以及為什麼好笑/有共鳴**。
+   - 如果光看標題不確定，請推測最可能在討論什麼現象，並講述其背景。
+2. 提供 2~3 個「延伸話題」(related_topics)：
+   - **絕對不要給我科學概念**。我需要的是「這個梗還可以怎麼玩」、「網路上還有哪些類似的迷因或黑話」、「這件事還能延伸出怎樣的笑料」。
 
 回傳純 JSON 陣列，不要 markdown：
 [
   {{
-    "index": 輸入時的編號,
+    "id": 剛才列表對應的 ID 數字(請給整數),
     "anime_meme": {{
-      "anime": "作品名 / 迷因名 / 話題名",
-      "meme": "對應的名言、梗或現象描述",
+      "anime": "作品名 / 梗來源",
+      "meme": "超詳細的梗解釋（至少50字，把你當下想到的網路笑話或來源講清楚）",
       "related_topics": [
-        {{"title": "相關話題標題", "description": "一句話描述為什麼相關"}}
+        {{"title": "延伸的搞笑或迷因話題", "description": "一句話說明怎麼玩這個梗"}}
       ]
     }}
   }}
@@ -183,13 +185,22 @@ def filter_and_extract_social_mechanisms(items: list) -> list:
         
         results = []
         for d in extracted_data:
-            idx = d.get("index", 1) - 1
-            if 0 <= idx < len(items):
-                item = items[idx]
+            idx = d.get("id", -1)
+            if isinstance(idx, int) and 0 <= idx < len(items):
+                matched_item = items[idx]
                 if "anime_meme" in d:
-                    item["anime_meme"] = d["anime_meme"]
-                results.append(item)
+                    matched_item["anime_meme"] = d["anime_meme"]
+                if matched_item not in results:
+                    results.append(matched_item)
                 
+        # 為了避免過分過濾導致畫面太空，如果 results 太少（< 3），我們原原本本地把剩下的補上
+        if len(results) < 3:
+            for item in items:
+                if item not in results:
+                    results.append(item)
+                    if len(results) >= 10:
+                        break
+                        
         return results
     except Exception as e:
         print(f"⚠️ 社群話題梗分析失敗: {e}")

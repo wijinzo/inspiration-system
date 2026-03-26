@@ -201,7 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ─── Card Selection ───
 
-    window.selectCard = function(cardEl, cardType) {
+    window.selectCard = function (cardEl, cardType) {
         const id = cardEl.dataset.id;
         const titleEl = cardEl.querySelector('.card-title');
         const title = titleEl ? titleEl.textContent.trim() : '';
@@ -255,7 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    window.clearSlot = function(slotType) {
+    window.clearSlot = function (slotType) {
         deselectCard(slotType);
     };
 
@@ -306,14 +306,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ─── Expand / Collapse Toggles ───
 
-    window.toggleExpand = function(event, btn) {
+    window.toggleExpand = function (event, btn) {
         event.stopPropagation();
         const desc = btn.previousElementSibling;
         const isExpanded = desc.classList.toggle('expanded');
         btn.textContent = isExpanded ? '收起 ▴' : '展開 ▾';
     };
 
-    window.toggleAnimeMeme = function(event, btn) {
+    window.toggleAnimeMeme = function (event, btn) {
         event.stopPropagation();
         const content = btn.nextElementSibling;
         const isHidden = content.classList.toggle('hidden');
@@ -461,9 +461,9 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const payload = {
                 locked_items: {
-                    science: selectedState.science?.id || null,
-                    social: selectedState.spice?.type === 'social' ? selectedState.spice.id : null,
-                    trend: selectedState.spice?.type === 'trend' ? selectedState.spice.id : null,
+                    science_url: selectedState.science?.id || null,
+                    social_url: selectedState.spice?.type === 'social' ? selectedState.spice.id : null,
+                    trend_url: selectedState.spice?.type === 'trend' ? selectedState.spice.id : null,
                 }
             };
 
@@ -550,22 +550,33 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         const labels = {
+            science_first_score: '科學先決 (Substitution Test)',
+            hook_appeal_score: 'Hook 吸引力 (幽默/迷因/懸疑)',
+            format_score: '正確性 (3 組 Hook 完整度)',
+            // 舊版備用
             science_core_completeness: '科普核心完整度',
             mechanism_clarity: '機制說明清晰度',
             social_integration: '時事整合自然度',
-            trend_integration: '時事整合自然度',
-            counter_intuitive_impact: '反常識衝擊力',
             anti_common_sense: '反常識衝擊力',
             taiwan_resonance: '台灣受眾共鳴',
-            tw_audience_resonance: '台灣受眾共鳴',
         };
+
         criticBreakdown.innerHTML = Object.entries(breakdown)
             .map(([key, val]) => {
                 const label = labels[key] || key;
-                const maxScore = 2;
+                // 優先判定 Science 為 4 分，其餘設為 3 分
+                let maxScore = 3; 
+                const lowerKey = key.toLowerCase();
+                if (lowerKey.includes('science') || lowerKey.includes('first')) {
+                    maxScore = 4;
+                }
+                
                 const normalizedScore = (val / maxScore) * 10;
                 const color = getScoreColor(normalizedScore);
-                return `<div class="breakdown-item"><span class="breakdown-label">${label}</span><span class="breakdown-score" style="color:${color}">${val}/${maxScore}</span></div>`;
+                return `<div class="breakdown-item">
+                            <span class="breakdown-label">${label}</span>
+                            <span class="breakdown-score" style="color:${color}">${val}/${maxScore}</span>
+                        </div>`;
             })
             .join('');
     }
