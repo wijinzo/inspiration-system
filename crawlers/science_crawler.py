@@ -24,8 +24,34 @@ from config import (
     MODEL_NAME, TEMPERATURE_FILTER,
     SCIENCE_RSS_FEEDS, BRAVE_SCIENCE_QUERIES,
     BRAVE_RETRY_MAX, BRAVE_RETRY_BACKOFF,
+    SCIENTIFIC_WHITELIST, SCIENTIFIC_BLACKLIST, CREDIBILITY_SCORES
 )
 from db.dedup import is_duplicate, mark_processed
+
+# ═══════════════════════════════════════════════
+#  輔助判斷：信譽評分 & 過濾 (V3)
+# ═══════════════════════════════════════════════
+
+def _is_valid_source(url: str) -> bool:
+    """根據白名單或黑名單過濾連結"""
+    url_lower = url.lower()
+    
+    # 若在黑名單，無條件拒絕
+    for bl in SCIENTIFIC_BLACKLIST:
+        if bl in url_lower:
+            return False
+            
+    # 只抓取可信賴的來源 (嚴格模式可強制要求 Whitlist)
+    # 這裡實作成：只要不在黑名單就「勉強」可以，但若在白名單會有較高分數
+    return True
+
+def _assign_credibility_score(url: str, source_name: str) -> int:
+    """依據設定檔指派星級 (1-3)"""
+    url_lower = url.lower()
+    for domain, score in CREDIBILITY_SCORES.items():
+        if domain != "default" and domain in url_lower:
+            return score
+    return CREDIBILITY_SCORES.get("default", 1)
 
 
 # ═══════════════════════════════════════════════
@@ -52,6 +78,9 @@ def fetch_science_rss() -> list:
 
                 if not title or not url:
                     continue
+                    
+                if not _is_valid_source(url):
+                    continue
 
                 # sqlite3 去重
                 if is_duplicate(url):
@@ -66,6 +95,7 @@ def fetch_science_rss() -> list:
                     "url": url,
                     "source": source,
                     "pipeline": "RSS",
+                    "credibility_score": _assign_credibility_score(url, source)
                 })
                 mark_processed(url, title, source)
                 count += 1
@@ -179,6 +209,9 @@ def fetch_brave_science(queries: list) -> list:
             item_url = item.get("url", "")
             if not item_url or is_duplicate(item_url):
                 continue
+                
+            if not _is_valid_source(item_url):
+                continue
 
             articles.append({
                 "title": item.get("title", ""),
@@ -186,6 +219,7 @@ def fetch_brave_science(queries: list) -> list:
                 "url": item_url,
                 "source": "Brave Search",
                 "pipeline": "BraveSearch",
+                "credibility_score": _assign_credibility_score(item_url, "Brave")
             })
             mark_processed(item_url, item.get("title", ""), "Brave")
 
@@ -324,14 +358,11 @@ def _parse_json(content) -> str:
 #  主函式：完整 Module 2 流程
 # ═══════════════════════════════════════════════
 
-def run_science_pipeline(trend_keywords: list = None) -> list:
+def run_science_pipeline() -> list:
     """
-    執行完整科學文獻抓取流程。
+    執行完整科學文獻抓取流程。 (V3 解耦版，無需吃 trends 參數)
 
-    Args:
-        trend_keywords: Module 1 提供的熱門關鍵字，用於管道 B 的動態搜尋
-
-    回傳: [{title, summary, mechanism, url, source, pipeline}]
+    回傳: [{title, summary, mechanism, url, source, pipeline, credibility_score}]
     """
     print("\n" + "=" * 50)
     print("Module 2: 科學文獻檢索")
@@ -340,8 +371,8 @@ def run_science_pipeline(trend_keywords: list = None) -> list:
     # 管道 A: RSS
     rss_articles = fetch_science_rss()
 
-    # 管道 B: Brave 動態
-    queries = generate_science_queries(trend_keywords or [])
+    # 管道 B: Brave 動態 (不提供 keywords, 改要通用的)
+    queries = generate_science_queries([])
     brave_articles = fetch_brave_science(queries)
 
     # 合併
@@ -355,13 +386,20 @@ def run_science_pipeline(trend_keywords: list = None) -> list:
     all_articles = extract_science_mechanisms(all_articles)
 
     print(f"Module 2 完成：{len(all_articles)} 篇科學文獻 with mechanisms")
+    
+    from db.store import save_science
+    if all_articles:
+        save_science(all_articles)
+        print("✅ 科學文獻已寫入資料庫")
+        
     return all_articles
 
 
 if __name__ == "__main__":
-    articles = run_science_pipeline(["少子化", "AI", "能源"])
+    articles = run_science_pipeline()
     print("\n─── 結果 ───")
     for i, a in enumerate(articles[:5]):
         print(f"\n{i+1}. [{a.get('pipeline', '?')}] {a['title']}")
+        print(f"   星級: {'★'*a.get('credibility_score', 1)}{'☆'*(3-a.get('credibility_score', 1))}")
         print(f"   機制: {a.get('mechanism', '無')}")
         print(f"   摘要: {a['summary'][:80]}...")

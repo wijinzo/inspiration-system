@@ -1,98 +1,127 @@
-# 🧪 Dual-Track Science Script Automation Engine
-### —— 科學先決：人類創作者的靈感工作檯 (Copilot Workbench) ——
+# 🧪 Dual-Track Science Script Automation Engine V3
+### —— 科學先決 × 爆點後置：人類創作者的靈感工作檯 ——
 
-這是一個專為 YouTube 短影音創作者設計的「科學-時事」雙軌創意引擎。它不追求全自動盲目產出，而是透過**「科學先決 (Science-First)」**的管線，將硬核科學機制與台灣熱門社群趨勢（動漫、梗、時事）無縫結合，產出具備高含金量與次文化共鳴的影片 Hook。
+專為 YouTube 科普創作者設計的「科學-時事-社群」三軌創意引擎。採用 **Science-First, Hook-Last** 架構——先產出一篇站得住腳的科普核心，再以時事、動漫梗、網路迷因作為包裝層疊加爆點。
 
 ---
 
 ## 🚀 核心特色
 
-- **🔬 科學先決管線**：從頂級科學期刊 (Nature, ScienceDaily) 萃取底層機制，確保內容的權威性與深度。
-- **🔥 標靶式時事捕捉**：
-  - **YouTube 頻道監控**：支援監控特定頻道（如：木棉花、泛科學），自動提取熱門動漫梗、ACG 次文化元素。
-  - **Dcard & PTT 深度抓取**：整合 Brave Search 避開爬蟲封鎖，精準定位年輕世代熱議話題。
-- **🤖 多智能體辯論 (Multi-Agent Debate)**：
-  - **Proposer Agent**：採用 Chain of Thought (CoT) 邏輯，從「黑色幽默/社畜」、「動漫/遊戲機制」、「懸疑/反常識」多維度生成腳本。
-  - **Critic Agent**：執行「抽換詞面測試」，嚴格審查科學與梗的融合度。
-- **🎲 靈感吃角子老虎機 (Surprise Me!)**：一鍵隨機碰撞「隨機時事」與「隨機科學」，打破創作瓶頸。
+- **🔬 科學先決管線**：從頂級期刊 (Nature, Science, ScienceDaily) 萃取底層機制，附帶可信度星級評分 (★★★)
+- **🎯 三軌資料來源**：
+  - **時事軌**：自由時報 / 公視 RSS → LLM 過濾政治八卦 → 提取底層運作機制
+  - **科學軌**：5 大國際科學 RSS + Brave Search 動態檢索 → 白黑名單過濾
+  - **社群軌**：瓦特兄弟 / 網路溫度計 / 木棉花 Shorts / 搞完君 → 動漫梗提取
+- **🤖 Proposer-Critic 辯論引擎**：
+  - **Proposer**：生成科學核心分析 + 三視角 Hook（幽默 / 動漫 / 懸疑）
+  - **Critic**：替換測試 (Substitution Test) + 三維評分，最多 3 回合迭代
+- **🎲 Surprise Me!**：一鍵隨機科學文獻 × 自動配對，打破創作瓶頸
+- **💾 解耦爬取/生成**：爬取結果持久化至 SQLite，支援手動觸發，不必每次重新抓取
 
 ---
 
-## 🛠️ 技術棧 (Tech Stack)
+## 🛠️ 技術棧
 
-- **後端**: `FastAPI` (Python)
-- **前端**: `Vanilla HTML / JS / CSS` (Glassmorphism 設計風格)
-- **大語言模型**: `Google Gemini` (透過 LangChain 調度)
-- **向量資料庫**: `ChromaDB` (科學機制儲存與匹配)
-- **爬蟲技術**: `YouTube Data API v3`, `Brave Search API`, `Feedparser`, `BeautifulSoup`
+| 類別 | 技術 |
+|------|------|
+| 後端 | FastAPI (Python) |
+| 前端 | Vanilla HTML / CSS / JS (Glassmorphism 深色模式) |
+| LLM | Google Gemini (`gemini-3-flash-preview`) via LangChain |
+| 資料庫 | SQLite (6 表持久化) + ChromaDB (向量配對) |
+| 爬蟲 | YouTube Data API v3, Brave Search API, Feedparser, BeautifulSoup |
 
 ---
 
 ## 📁 檔案結構
 
 ```text
- project_root/
- ├── app.py             # FastAPI 主要路由與 API 接口
- ├── config.py          # 集中配置檔（模型參數、RSS、YouTube 頻道）
- ├── .env               # API 金鑰 (GOOGLE, BRAVE, YOUTUBE)
- ├── crawlers/          # 數據採集模組
- │   ├── trend_crawler.py      # 台灣社群趨勢、YouTube、Dcard 爬取
- │   └── science_crawler.py    # 國際科學文獻 RSS 與檢索
- ├── engine/            # 核心邏輯層
- │   └── vector_matching.py    # 向量匹配 + 多智能體辯論引擎
- ├── static/            # UI 靜態檔案
- │   ├── index.html     # 雙欄位互動設計面板
- │   ├── style.css      # 現代感深色模式樣式
- │   └── script.js      # 前端邏輯與動態效果
- └── data/              # 暫存結果與歷史靈感
+project_root/
+├── app.py                    # FastAPI 主應用 (12 條 V3 API 路由)
+├── config.py                 # 集中設定 (模型/RSS/頻道/白黑名單/星級)
+├── populate_db.py            # 一鍵爬取填充資料庫
+├── .env                      # API 金鑰
+├── crawlers/
+│   ├── trend_crawler.py      # Module 1: 台灣新聞 RSS + LLM 過濾
+│   ├── science_crawler.py    # Module 2: 科學 RSS + Brave + 信譽評分
+│   └── social_crawler.py     # Module 3: YouTube 頻道 + 動漫梗提取
+├── engine/
+│   ├── pipeline.py           # V3 Science-First Proposer-Critic 引擎
+│   └── vector_matching.py    # Legacy V2 ChromaDB 配對 (備用)
+├── db/
+│   ├── store.py              # SQLite 6 表 CRUD
+│   └── dedup.py              # URL 去重
+└── static/
+    ├── index.html            # V3 三欄互動面板
+    ├── style.css             # 深色主題 + Tab/Badge/星級樣式
+    └── script.js             # 前端邏輯 (爬取控制/卡片選取/Hook Tab)
 ```
+
+---
+
+## 🔌 API 端點
+
+| Method | Route | 說明 |
+|--------|-------|------|
+| `POST` | `/api/crawl/trends` | 觸發時事爬蟲 |
+| `POST` | `/api/crawl/social` | 觸發社群爬蟲 |
+| `POST` | `/api/crawl/science` | 觸發科學爬蟲 |
+| `POST` | `/api/crawl/all` | 全部爬取 |
+| `GET` | `/api/data/trends` | 讀取時事快取 |
+| `GET` | `/api/data/social` | 讀取社群快取 |
+| `GET` | `/api/data/science` | 讀取科學快取 |
+| `POST` | `/api/generate` | 執行 V3 Pipeline 生成 |
+| `POST` | `/api/surprise` | 隨機選文生成 |
+| `POST` | `/api/science/evaluate` | 評估 URL 可信度 |
+| `GET` | `/api/history` | 歷史記錄 |
+| `POST` | `/api/save` | 儲存靈感 |
 
 ---
 
 ## ⚙️ 快速上手
 
-### 1. 安裝環境與依賴
+### 1. 安裝依賴
 ```bash
-# 建立虛擬環境
 python -m venv venv
-# Windows 啟動
-.\venv\Scripts\Activate.ps1
-# Mac/Linux 啟動: source venv/bin/activate
-
-# 安裝套件
+.\venv\Scripts\Activate.ps1       # Windows
+# source venv/bin/activate        # Mac/Linux
 pip install -r requirements.txt
 ```
 
 ### 2. 配置環境變數
-請複製 `.env.example` 並更名為 `.env`，填入您的金鑰：
 ```bash
 cp .env.example .env
 ```
-檔案內容範例：
 ```env
 GOOGLE_API_KEY=您的Gemini金鑰
 BRAVE_API_KEY=您的BraveSearch金鑰
 YOUTUBE_API_KEY=您的YouTube金鑰
 ```
 
-### 3. 初始化資料庫與預熱趨勢 (建議)
-第一次使用，請先手動執行一次爬蟲，以建立資料庫與抓取初始靈感資料：
+### 3. 首次填充資料庫
 ```bash
-python crawlers/trend_crawler.py
+python populate_db.py
 ```
 
-### 4. 啟動 Web 儀表板
+### 4. 啟動伺服器
 ```bash
-# 啟動後端服務 (要記得開虛擬環境)
-.\venv\Scripts\Activate.ps1
-python app.py
+uvicorn app:app --host 127.0.0.1 --port 8000 --reload
 ```
-啟動後訪問 `http://127.0.0.1:8000` 即可進入儀表板。
+訪問 `http://127.0.0.1:8000` 進入 V3 儀表板。
 
 ---
 
-## 🎨 監視頻道配置 (選配)
-至 `config.py` 修改 `TARGET_YOUTUBE_CHANNELS` 加入您想監控的創作者頻道 ID。標記為 `anime` 的頻道將會自動觸發「動漫梗機制提取」。
+## 📡 監視頻道配置
+
+至 `config.py` 修改 `TARGET_SOCIAL_CHANNELS` 加入您想監控的 YouTube 頻道：
+
+```python
+TARGET_SOCIAL_CHANNELS = [
+    {"id": "頻道ID", "name": "顯示名稱", "category": "anime", "fetch_shorts_only": True},
+    # category: gaming_meme / social_trend / anime / meme
+]
+```
+
+標記為 `anime` 的頻道會自動觸發「動漫梗提取」；`fetch_shorts_only: True` 僅抓取 Shorts。
 
 ---
 

@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>雙軌科普腳本自動化引擎 V2</title>
-    <meta name="description" content="自動結合台灣時事與科學知識，生成 YouTube 腳本 Hook">
+    <title>雙軌科普腳本自動化引擎 V3</title>
+    <meta name="description" content="Science-First × Hook-Last 雙軌科普腳本自動化引擎">
     <link rel="stylesheet" href="/static/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -15,102 +15,220 @@
     <div class="app-container">
 
         <!-- Header -->
-        <header class="header neon-glass">
-            <div class="logo-area">
+        <header class="app-header neon-glass">
+            <div class="header-logo">
                 <i class="fa-solid fa-atom pulse-icon"></i>
-                <h1>雙軌科普腳本自動化引擎</h1>
+                <div class="header-text">
+                    <h1>雙軌科普腳本自動化引擎</h1>
+                    <p class="header-sub">V3 — Science-First × Hook-Last</p>
+                </div>
             </div>
-            <p class="subtitle">V2 — pytrends × RSS × Multi-Agent Debate</p>
+            <div class="header-actions">
+                <button id="historyBtn" class="btn btn-ghost btn-sm">
+                    <i class="fa-solid fa-clock-rotate-left"></i> 歷史靈感
+                </button>
+                <button id="dbBtn" class="btn btn-ghost btn-sm">
+                    <i class="fa-solid fa-database"></i> 資料庫
+                </button>
+            </div>
         </header>
 
-        <!-- Controls -->
-        <section class="controls glass-panel">
-            <button id="generateBtn" class="btn primary-btn btn-glow">
-                <i class="fa-solid fa-wand-magic-sparkles"></i> 啟動配對引擎
-            </button>
-            <button id="surpriseBtn" class="btn secondary-btn btn-glow" title="隨機抽配靈感火花">
-                <i class="fa-solid fa-slot-machine"></i> <i class="fa-solid fa-dice"></i> Surprise Me!
-            </button>
-            <div id="keywordsBadge" class="keywords-badge hidden"></div>
-        </section>
+        <!-- Selection Bar -->
+        <div class="selection-bar glass-panel">
 
-        <!-- Error Display -->
-        <div id="errorBox" class="error-box glass-panel hidden">
-            <i class="fa-solid fa-triangle-exclamation"></i>
-            <span id="errorMessage"></span>
-            <button id="retryFromError" class="btn secondary-btn btn-small">
-                <i class="fa-solid fa-rotate-right"></i> 重試
-            </button>
+            <div class="sel-slot sel-slot--required" id="slotScience">
+                <span class="sel-slot__label">
+                    <i class="fa-solid fa-microscope"></i> 科學
+                </span>
+                <span class="sel-slot__value" id="slotScienceVal">
+                    請選擇科學文章（必選）
+                </span>
+            </div>
+
+            <span class="sel-arrow">→</span>
+
+            <div class="sel-slot" id="slotSpice">
+                <span class="sel-slot__label">
+                    <i class="fa-solid fa-pepper-hot"></i> 佐料
+                </span>
+                <span class="sel-slot__value" id="slotSpiceVal">
+                    選擇社群梗或新聞（可選）
+                </span>
+                <button class="sel-slot__clear hidden" id="slotSpiceClear"
+                        onclick="clearSlot('spice')" aria-label="清除">✕</button>
+            </div>
+
+            <div class="sel-actions">
+                <button id="surpriseBtn" class="btn btn-secondary btn-sm btn-glow">
+                    <i class="fa-solid fa-dice"></i> Surprise Me!
+                </button>
+                <button id="generateBtn" class="btn btn-primary btn-glow" disabled>
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> 啟動生成
+                </button>
+            </div>
+
         </div>
 
-        <!-- Loader -->
-        <div id="loader" class="loader-container hidden">
-            <div class="spinner"></div>
-            <p id="loaderText" class="loader-text">連結台灣社群網絡...</p>
-        </div>
+        <!-- Main Area -->
+        <main class="app-main">
 
-        <!-- Main Dashboard -->
-        <main id="dashboard" class="dashboard grid-layout hidden" style="grid-template-columns: 1fr 1fr 1fr;">
+            <!-- Left Panel: Material Selection -->
+            <div class="panel-left glass-panel">
 
-            <!-- Left: Trends -->
-            <div class="column trend-column glass-panel">
-                <h2><i class="fa-solid fa-newspaper text-gradient-orange"></i> 新聞與底層機制</h2>
-                <div id="trendList" class="card-list"></div>
-            </div>
-
-            <!-- Middle: Social Trends -->
-            <div class="column social-column glass-panel">
-                <h2><i class="fa-solid fa-fire text-gradient-red"></i> 社群時事 (YT/Dcard/PTT)</h2>
-                <div id="socialList" class="card-list"></div>
-            </div>
-
-            <!-- Right: Science -->
-            <div class="column science-column glass-panel">
-                <h2><i class="fa-solid fa-microscope text-gradient-blue"></i> 匹配的科學文獻池</h2>
-                <div id="scienceList" class="card-list"></div>
-            </div>
-
-            <!-- Bottom: Hook Result -->
-            <div class="bottom-panel glass-panel summary-card">
-                <div class="result-header">
-                    <h2><i class="fa-brands fa-youtube" style="color: #ff0000;"></i> YouTube 腳本開場白 (Hook)</h2>
-                    <div id="criticBadge" class="critic-badge"></div>
-                </div>
-
-                <!-- Quality Warning -->
-                <div id="qualityWarning" class="quality-warning hidden"></div>
-
-                <div class="hook-content">
-                    <blockquote id="hookText" class="hook-quote"></blockquote>
-                </div>
-
-                <!-- Source Articles -->
-                <div id="sourceArticles" class="source-articles-box"></div>
-
-                <!-- Critic Comment -->
-                <div class="reasoning-box">
-                    <h4><i class="fa-solid fa-brain"></i> 企劃底層邏輯</h4>
-                    <p id="reasoningText"></p>
-                </div>
-
-                <div id="criticDetail" class="critic-detail-box">
-                    <h4><i class="fa-solid fa-clipboard-check"></i> Critic Agent 審查</h4>
-                    <p id="criticComment"></p>
-                    <div id="criticBreakdown" class="breakdown-grid"></div>
-                </div>
-
-                <div class="action-footer">
-                    <button id="retryBtn" class="btn secondary-btn">
-                        <i class="fa-solid fa-rotate-right"></i> 重新生成
+                <nav class="panel-tabs">
+                    <button class="tab-btn tab-btn--active" data-tab="science">
+                        <i class="fa-solid fa-microscope"></i> 科學文獻 (必選)
                     </button>
-                    <button id="saveBtn" class="btn secondary-btn">
-                        <i class="fa-solid fa-save"></i> 儲存此靈感 (CSV)
+                    <button class="tab-btn" data-tab="social">
+                        <i class="fa-solid fa-masks-theater"></i> 話題梗
                     </button>
-                    <span id="saveStatus" class="status-msg"></span>
+                    <button class="tab-btn" data-tab="news">
+                        <i class="fa-solid fa-newspaper"></i> 新聞 &amp; 熱度
+                    </button>
+                </nav>
+
+                <div class="panel-content">
+
+                    <div id="tabScience" class="tab-panel tab-panel--active">
+                        <div id="scienceHint" class="required-hint">
+                            <i class="fa-solid fa-circle-info"></i>
+                            請先從下方選取一篇科學文章作為核心定錨
+                        </div>
+                        <div id="scienceList" class="card-list"></div>
+                    </div>
+
+                    <div id="tabSocial" class="tab-panel hidden">
+                        <div id="socialList" class="card-list"></div>
+                    </div>
+
+                    <div id="tabNews" class="tab-panel hidden">
+                        <div class="keywords-bar">
+                            <span class="keywords-label">
+                                <i class="fa-solid fa-chart-line"></i> 今日熱詞
+                            </span>
+                            <div id="keywordsBadge" class="keywords-pills"></div>
+                        </div>
+                        <div id="newsList" class="card-list"></div>
+                    </div>
+
                 </div>
+            </div>
+
+            <!-- Right Panel: Generation Results -->
+            <div class="panel-right glass-panel">
+
+                <div id="resultEmpty" class="result-empty">
+                    <i class="fa-solid fa-flask-vial fa-2x" style="opacity:0.3"></i>
+                    <p>選取科學文章後啟動生成</p>
+                    <p class="result-empty__sub">可加選社群梗或時事以提升配對精度</p>
+                </div>
+
+                <div id="resultLoader" class="loader-container hidden">
+                    <div class="spinner"></div>
+                    <p id="loaderText" class="loader-text">Multi-Agent Debate 進行中...</p>
+                </div>
+
+                <div id="resultContent" class="result-area hidden">
+
+                    <div class="science-core-box">
+                        <div class="science-core-label">
+                            <i class="fa-solid fa-flask-vial"></i> 科普核心
+                        </div>
+                        <p id="scienceCoreText" class="science-core-text"></p>
+                        <div id="mechanismTag" class="mechanism-tag science-mechanism">
+                            <i class="fa-solid fa-atom"></i>
+                            <span id="mechanismText"></span>
+                        </div>
+                    </div>
+
+                    <div class="hook-section glass-panel">
+                        <div class="hook-tab-nav">
+                            <button class="hook-tab-btn hook-tab-btn--active" data-hook="0">
+                                😈 黑色幽默
+                            </button>
+                            <button class="hook-tab-btn" data-hook="1">
+                                ⚔️ 動漫機制
+                            </button>
+                            <button class="hook-tab-btn" data-hook="2">
+                                🕵️ 懸疑反常識
+                            </button>
+                        </div>
+                        <blockquote id="hookTab0" class="hook-quote hook-quote--active"></blockquote>
+                        <blockquote id="hookTab1" class="hook-quote hidden"></blockquote>
+                        <blockquote id="hookTab2" class="hook-quote hidden"></blockquote>
+                        <div class="hook-actions">
+                            <button id="copyHookBtn" class="btn btn-ghost btn-sm">
+                                <i class="fa-solid fa-copy"></i> 複製此角度
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="sourceArticles" class="source-articles-box"></div>
+
+                    <details class="collapsible-section glass-panel" id="criticSection">
+                        <summary class="collapsible-header">
+                            <span>
+                                <i class="fa-solid fa-clipboard-check"></i> Critic 審查
+                            </span>
+                            <div class="critic-score-inline">
+                                <span id="criticScoreInline" class="critic-score-badge">—</span>
+                                <i class="fa-solid fa-chevron-down collapse-icon"></i>
+                            </div>
+                        </summary>
+                        <div class="collapsible-body">
+                            <div id="criticBreakdown" class="breakdown-grid"></div>
+                            <p id="criticComment" class="critic-comment"></p>
+                        </div>
+                    </details>
+
+                    <details class="collapsible-section glass-panel">
+                        <summary class="collapsible-header">
+                            <span>
+                                <i class="fa-solid fa-brain"></i> 企劃底層邏輯
+                            </span>
+                            <i class="fa-solid fa-chevron-down collapse-icon"></i>
+                        </summary>
+                        <div class="collapsible-body">
+                            <p id="reasoningText" class="reasoning-text"></p>
+                        </div>
+                    </details>
+
+                    <div class="result-footer">
+                        <button id="retryBtn" class="btn btn-secondary btn-sm">
+                            <i class="fa-solid fa-rotate-right"></i> 重新生成
+                        </button>
+                        <button id="saveBtn" class="btn btn-ghost btn-sm">
+                            <i class="fa-solid fa-save"></i> 儲存 CSV
+                        </button>
+                    </div>
+
+                </div>
+
+                <div id="errorBox" class="error-box glass-panel hidden">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span id="errorMessage"></span>
+                    <button id="retryFromError" class="btn btn-secondary btn-sm">
+                        <i class="fa-solid fa-rotate-right"></i> 重試
+                    </button>
+                </div>
+
             </div>
 
         </main>
+
+        <!-- History Drawer -->
+        <div id="historyDrawer" class="history-drawer hidden glass-panel">
+            <div class="drawer-header">
+                <h2><i class="fa-solid fa-clock-rotate-left"></i> 歷史靈感記錄</h2>
+                <button id="closeHistoryBtn" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="drawer-content" id="historyList">
+                <div class="loader-container" style="height: 100px;">
+                    <div class="spinner" style="width: 30px; height: 30px;"></div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script src="/static/script.js"></script>

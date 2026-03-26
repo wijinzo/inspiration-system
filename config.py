@@ -11,17 +11,44 @@ TEMPERATURE_CREATIVE = 0.7     # 生成 Hook 用 (高溫度 = 創意)
 CRITIC_THRESHOLD = 8           # 評分 ≥ 8 才通過
 MAX_DEBATE_RETRIES = 3         # Proposer 最多重寫 3 次
 
-# ─── 台灣時事 RSS (已驗證可用) ───
+# ═══════════════════════════════════════════════
+#  2. 時事來源設定 (Trends / News)
+# ═══════════════════════════════════════════════
+
 TAIWAN_NEWS_RSS = [
-    "https://news.ltn.com.tw/rss/all.xml",          # 自由時報 - 即時全部
-    "https://news.pts.org.tw/xml/newsfeed.xml",      # 公視新聞
+    "https://news.ltn.com.tw/rss/all.xml",
+    "https://news.pts.org.tw/xml/newsfeed.xml"
 ]
 
-# ─── 指定 YouTube 頻道 (靈感來源) ───
-TARGET_YOUTUBE_CHANNELS = [
-    # 您可以在此處加入感興趣的頻道 ID 與名稱
-    {"id": "UCCvg26UqC_pXNq0uS9L8_5w", "name": "泛科學", "category": "science"},
-    {"id": "UCgdwtyqBunlRb-i-7PnCssQ", "name": "木棉花", "category": "anime"},
+# ═══════════════════════════════════════════════
+#  4. 社群來源設定 (Social / Anime / Memes) (V3)
+# ═══════════════════════════════════════════════
+
+TARGET_SOCIAL_CHANNELS = [
+    {
+        "id": "UCSVc4yR7dC_6w6v-nQo1HCA",  # 瓦特兄弟
+        "name": "瓦特兄弟",
+        "category": "gaming_meme",
+        "fetch_shorts_only": False
+    },
+    {
+        "id": "UCE0f-fAIT5o0SjYw9T24yBQ",  # 網路溫度計 DailyView
+        "name": "網路溫度計",
+        "category": "social_trend",
+        "fetch_shorts_only": False
+    },
+    {
+        "id": "UCgdwtyqBunlRb-i-7PnCssQ",  # 木棉花 (Muse Communication)
+        "name": "木棉花",
+        "category": "anime",
+        "fetch_shorts_only": True  # 只抓 Shorts
+    },
+    {
+        "id": "UCwYTuoLZaII23xxAGV2zqcA",
+        "name": "搞完君",
+        "category": "meme",
+        "fetch_shorts_only": False
+    }
 ]
 
 # ─── 科學文獻 RSS ───
@@ -30,24 +57,53 @@ SCIENCE_RSS_FEEDS = [
     "https://www.sciencedaily.com/rss/top/technology.xml",
     "https://www.sciencedaily.com/rss/strange_offbeat.xml",
     "https://www.nature.com/nature.rss",
-    "https://www.newscientist.com/section/news/feed/",
-    "https://phys.org/rss-feed/",
-    "https://feeds.arstechnica.com/arstechnica/science",
+    "https://www.science.org/rss/news_current.xml"
 ]
+
+# ─── 科學過濾機制 (V3 新增) ───
+SCIENTIFIC_WHITELIST = [
+    "nature.com",
+    "science.org",
+    "cell.com",
+    "thelancet.com",
+    "nejm.org",
+    "pnas.org",
+    "phys.org",
+    "sciencedaily.com"
+]
+
+SCIENTIFIC_BLACKLIST = [
+    "contentfarm.com",
+    "dailymail.co.uk",
+    "nypost.com",
+    "thesun.co.uk",
+    "huffpost.com",
+    "buzzfeed.com",
+    "reddit.com",
+    "wikipedia.org"
+]
+
+CREDIBILITY_SCORES = {
+    "nature.com": 3,
+    "science.org": 3,
+    "cell.com": 3,
+    "sciencedaily.com": 2,
+    "phys.org": 2,
+    "nationalgeographic.com": 2,
+    "default": 1
+}
 
 # ─── Brave Search API 預算控制 ───
 BRAVE_SCIENCE_QUERIES = 3      # 每次執行最多 3 次科學動態檢索
-BRAVE_RETRY_MAX = 3            # API 失敗重試次數
+BRAVE_RETRY_MAX = 3            # 重試次數上限
 BRAVE_RETRY_BACKOFF = [1, 2, 4]  # 重試延遲（秒）
 
+import os
+
 # ─── 資料庫 ───
-DB_PATH = "articles.db"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "articles.db")
 
 # ─── ChromaDB ───
-CHROMA_PERSIST_DIR = "./chroma_db"
+CHROMA_PERSIST_DIR = os.path.join(BASE_DIR, "chroma_db")
 CHROMA_COLLECTION_NAME = "mechanisms"
-
-# ─── pytrends ───
-PYTRENDS_REGION = "taiwan"     # trending_searches 區域
-PYTRENDS_GEO = "TW"           # realtime_trending_searches 區域
-PYTRENDS_LANGUAGE = "zh-TW"
