@@ -738,6 +738,19 @@ body {
     border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
+.gt-badge {
+    background: rgba(66, 133, 244, 0.2);
+    color: #4285f4;
+    border: 1px solid rgba(66, 133, 244, 0.3);
+}
+
+.category-badge {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    font-style: italic;
+}
+
 .shorts-tag {
     font-size: 0.65rem;
     color: #ef4444;
@@ -1256,4 +1269,67 @@ details[open] .collapse-icon {
 .drawer-content::-webkit-scrollbar-thumb:hover,
 .tab-panel::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.2);
+}
+
+/* ═══ 圖片縮圖互動優化 ═══ */
+.card-thumbnail {
+    cursor: zoom-in;
+    /* 滑鼠游標變成放大鏡 */
+    transition: filter 0.2s, transform 0.2s;
+}
+
+.card-thumbnail:hover {
+    filter: brightness(1.1);
+    /* 滑過時微微提亮 */
+}
+
+/* ═══ 圖片放大燈箱 (Lightbox) ═══ */
+.image-modal {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: fixed;
+    z-index: 9999;
+    /* 確保蓋在所有東西最上層 */
+    left: 0;
+    top: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.85);
+    /* 深色半透明背景 */
+    backdrop-filter: blur(8px);
+    /* 毛玻璃效果 */
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+.image-modal.hidden {
+    display: none;
+    opacity: 0;
+}
+
+/* 放大後的圖片本體 */
+.image-modal-content {
+    max-width: 90vw;
+    max-height: 90vh;
+    border-radius: var(--radius-md);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    object-fit: contain;
+    /* ⚡ 絕對關鍵：完整顯示，絕不裁切 */
+}
+
+/* 關閉按鈕 (叉叉) */
+.image-modal-close {
+    position: absolute;
+    top: 20px;
+    right: 30px;
+    color: #f1f1f1;
+    font-size: 40px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.image-modal-close:hover {
+    color: var(--accent-color);
 }

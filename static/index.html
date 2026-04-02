@@ -54,8 +54,8 @@
                 <span class="sel-slot__value" id="slotSpiceVal">
                     選擇社群梗或新聞（可選）
                 </span>
-                <button class="sel-slot__clear hidden" id="slotSpiceClear"
-                        onclick="clearSlot('spice')" aria-label="清除">✕</button>
+                <button class="sel-slot__clear hidden" id="slotSpiceClear" onclick="clearSlot('spice')"
+                    aria-label="清除">✕</button>
             </div>
 
             <div class="sel-actions">
@@ -144,7 +144,7 @@
                     <div class="hook-section glass-panel">
                         <div class="hook-tab-nav">
                             <button class="hook-tab-btn hook-tab-btn--active" data-hook="0">
-                                😈 黑色幽默
+                                😈 時事生活
                             </button>
                             <button class="hook-tab-btn" data-hook="1">
                                 ⚔️ 動漫機制
@@ -230,7 +230,10 @@
         </div>
 
     </div>
-
+    <div id="imageModal" class="image-modal hidden">
+        <span class="image-modal-close" onclick="closeImageModal()">&times;</span>
+        <img class="image-modal-content" id="modalImage">
+    </div>
     <script src="/static/script.js?v=3.5"></script>
 </body>
 

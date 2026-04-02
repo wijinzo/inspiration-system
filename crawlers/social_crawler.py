@@ -15,8 +15,11 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from config import (
-    MODEL_NAME, TEMPERATURE_FILTER, TARGET_SOCIAL_CHANNELS
+    MODEL_NAME, TEMPERATURE_FILTER, TARGET_SOCIAL_CHANNELS,
+    DAILYVIEW_API, WATTBROTHER_URL
 )
+import requests
+from bs4 import BeautifulSoup
 
 
 def _clean_youtube_description(text: str) -> str:
@@ -126,6 +129,90 @@ def fetch_social_channels() -> list:
     return results
 
 
+def fetch_dailyview_trends() -> list:
+    """使用 DailyView API 抓取熱門話題"""
+    print(f"正在抓取網路溫度計 (DailyView) API...")
+    results = []
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Referer": "https://dailyview.tw/"
+    }
+    try:
+        resp = requests.get(DAILYVIEW_API, headers=headers, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        articles = data.get("article", [])
+        
+        for a in articles[:10]:
+            results.append({
+                "title": a.get("title", ""),
+                "summary": a.get("description", ""),
+                "url": a.get("url", ""),
+                "source": "網路溫度計",
+                "category": "social_trend",
+                "is_short": False,
+                "matched_keywords": ["網路溫度計", "DailyView"],
+                "thumbnail": a.get("image_url", "")
+            })
+        print(f"  網路溫度計: 取得 {len(results)} 篇熱門話題")
+    except Exception as e:
+        print(f"⚠️ DailyView API 抓取失敗: {e}")
+    return results
+
+
+def fetch_wattbrother_memes() -> list:
+    """從 瓦特兄弟 (WattBrother) 官網抓取遊戲迷因"""
+    print(f"正在爬取瓦特兄弟官網 ({WATTBROTHER_URL})...")
+    results = []
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+    }
+    try:
+        resp = requests.get(WATTBROTHER_URL, headers=headers, timeout=10)
+        resp.raise_for_status()
+        soup = BeautifulSoup(resp.text, "html.parser")
+        
+        # 根據瀏覽器 subagent 提供的結構: div.item
+        items = soup.select("div.item")
+        for item in items[:10]:
+            links = item.select("a")
+            if len(links) < 2: continue
+            
+            title = links[1].get_text(strip=True)
+            url = links[1].get("href", "")
+            if url and not url.startswith("http"):
+                url = "https://wattbrother.com" + url
+            
+            # 摘要
+            summary_div = item.select_one("div:nth-of-type(2)") # 或根據內容查找
+            summary = summary_div.get_text(strip=True) if summary_div else ""
+            
+            # 圖片 (CSS 屬性，可能需要 re 提取)
+            # <div class="thumbnail" style="background-image:url('...')">
+            img_div = item.select_one("div.thumbnail")
+            thumbnail = ""
+            if img_div and "background-image" in img_div.get("style", ""):
+                style = img_div.get("style", "")
+                match = re.search(r"url\('?([^'()]+)'?\)", style)
+                if match:
+                    thumbnail = match.group(1)
+            
+            results.append({
+                "title": title,
+                "summary": summary[:200],
+                "url": url,
+                "source": "瓦特兄弟 (WEB)",
+                "category": "gaming_meme",
+                "is_short": False,
+                "matched_keywords": ["瓦特兄弟", "遊戲迷因"],
+                "thumbnail": thumbnail
+            })
+        print(f"  瓦特兄弟 (WEB): 取得 {len(results)} 篇遊戲迷因")
+    except Exception as e:
+        print(f"⚠️ 瓦特兄弟網頁爬取失敗: {e}")
+    return results
+
+
 def filter_and_extract_social_mechanisms(items: list) -> list:
     """使用 LLM 過濾日常廢片，並為有潛力的影片提取「底層機制」與「動漫梗」"""
     if not items:
@@ -143,7 +230,7 @@ def filter_and_extract_social_mechanisms(items: list) -> list:
     # 批次處理
     items_text = "\n".join([
         f"[ID: {i}] | 頻道:{item['source']} | 標題: {item['title']} | 摘要: {item['summary']}"
-        for i, item in enumerate(items[:20])
+        for i, item in enumerate(items[:30])
     ])
 
     prompt = PromptTemplate.from_template(
@@ -162,10 +249,14 @@ def filter_and_extract_social_mechanisms(items: list) -> list:
 2. 提供 2~3 個「延伸話題」(related_topics)：
    - **絕對不要給我科學概念**。我需要的是「這個梗還可以怎麼玩」、「網路上還有哪些類似的迷因或黑話」、「這件事還能延伸出怎樣的笑料」。
 
-回傳純 JSON 陣列，不要 markdown：
+⚠️ **最重要的規則**：你必須在每個回傳的物件中包含 "id" 欄位，值為上方列表中的 [ID: N] 的數字 N。
+這是用來對應原始項目的唯一方式，不可省略也不可亂填！
+
+回傳格式（嚴格遵守）：
 [
   {{
-    "id": 剛才列表對應的 ID 數字(請給整數),
+    "id": 0,
+    "title": "原始標題（直接從上方列表複製貼上，不要修改）",
     "anime_meme": {{
       "anime": "作品名 / 梗來源",
       "meme": "超詳細的梗解釋（至少50字，把你當下想到的網路笑話或來源講清楚）",
@@ -184,19 +275,57 @@ def filter_and_extract_social_mechanisms(items: list) -> list:
         extracted_data = json.loads(content)
         
         results = []
+        # 標題對應查找表 (小寫化以增加匹配率)
+        title_map = {item["title"].lower(): item for item in items}
+        used_urls = set()
+        
         for d in extracted_data:
+            matched_item = None
+            
+            # 1. 最優先：使用 ID 匹配（最可靠）
             idx = d.get("id", -1)
             if isinstance(idx, int) and 0 <= idx < len(items):
                 matched_item = items[idx]
-                if "anime_meme" in d:
-                    matched_item["anime_meme"] = d["anime_meme"]
-                if matched_item not in results:
-                    results.append(matched_item)
+            
+            # 2. 次優先：精確標題匹配
+            if not matched_item:
+                llm_title = d.get("title", "").lower().strip()
+                if llm_title:
+                    matched_item = title_map.get(llm_title)
                 
+                    # 3. 局部匹配 (如果 LLM 回傳了部分標題)
+                    if not matched_item:
+                        best_match = None
+                        best_overlap = 0
+                        for full_title, item_obj in title_map.items():
+                            # 計算雙向包含的字元重疊比例
+                            if llm_title in full_title or full_title in llm_title:
+                                overlap = min(len(llm_title), len(full_title))
+                                if overlap > best_overlap:
+                                    best_overlap = overlap
+                                    best_match = item_obj
+                        matched_item = best_match
+            
+            if not matched_item:
+                print(f"  ⚠️ LLM 回傳的項目無法匹配 (id={idx}, title={d.get('title', '')[:30]})")
+                continue
+            
+            if matched_item["url"] in used_urls:
+                continue  # 避免重複
+                
+            if "anime_meme" in d:
+                new_item = matched_item.copy()
+                new_item["anime_meme"] = d["anime_meme"]
+                results.append(new_item)
+                used_urls.add(new_item["url"])
+                print(f"  ✅ 匹配成功: [{idx}] {matched_item['title'][:40]}")
+                
+        print(f"  LLM 回傳 {len(extracted_data)} 筆, 成功匹配 {len(results)} 筆")
+        
         # 為了避免過分過濾導致畫面太空，如果 results 太少（< 3），我們原原本本地把剩下的補上
         if len(results) < 3:
             for item in items:
-                if item not in results:
+                if item["url"] not in used_urls:
                     results.append(item)
                     if len(results) >= 10:
                         break
@@ -233,6 +362,15 @@ def run_social_pipeline() -> list:
     print("=" * 50)
     
     raw_items = fetch_social_channels()
+    
+    # 新增: 官網爬蟲
+    raw_items += fetch_dailyview_trends()
+    raw_items += fetch_wattbrother_memes()
+    
+    # 隨機打亂，以便 LLM 看到不同來源的內容 (否則前 20 則可能全是 YouTube)
+    import random
+    random.shuffle(raw_items)
+    
     if not raw_items:
         return []
         

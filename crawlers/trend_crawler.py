@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from config import (
     MODEL_NAME, TEMPERATURE_FILTER,
-    TAIWAN_NEWS_RSS
+    TAIWAN_NEWS_RSS, GOOGLE_TRENDS_RSS
 )
 
 
@@ -76,6 +76,38 @@ def _identify_source(url: str) -> str:
         return "公視新聞"
     return "其他"
 
+
+def fetch_google_trends():
+    """從 Google Trends RSS 抓取台灣每日熱搜關鍵字。"""
+    print(f"正在抓取 Google Trends (TW)...")
+    articles = []
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+    }
+    try:
+        resp = requests.get(GOOGLE_TRENDS_RSS, headers=headers, timeout=10)
+        import feedparser
+        feed = feedparser.parse(resp.content)
+        for entry in feed.entries[:20]:
+            title = entry.get("title", "").strip()
+            if not title: continue
+            
+            summary = entry.get("description", "Google 熱搜趨勢")
+            url = entry.get("link", "")
+            
+            articles.append({
+                "title": title,
+                "summary": summary,
+                "url": url,
+                "source": "Google Trends",
+                "matched_keywords": [title]
+            })
+        print(f"  Google Trends: 取得 {len(articles)} 條熱搜關鍵字")
+    except Exception as e:
+        print(f"  ⚠️ Google Trends 抓取失敗: {e}")
+    return articles
+
+
 # ═══════════════════════════════════════════════
 #  Step 2: LLM 過濾 + 機制抽象化
 # ═══════════════════════════════════════════════
@@ -121,11 +153,9 @@ def filter_and_extract_mechanisms(articles: list, trends_keywords: list = None) 
 請以 JSON 格式回傳，不要包含 markdown 標記：
 [
   {{
-    "index": 原始編號,
-    "title": "新聞標題",
-    "summary": "一句話白話摘要",
-    "mechanism": "底層運作機制（10-30字）",
-    "keywords": ["關鍵字1", "關鍵字2", "關鍵字3"]
+    "title": "標題",
+    "mechanism": "核心機制 (科普點)",
+    "explanation": "為什麼這能用科學解釋？"
   }}
 ]
 
@@ -141,14 +171,36 @@ def filter_and_extract_mechanisms(articles: list, trends_keywords: list = None) 
         })
 
         content = _parse_llm_response(response.content)
-        results = json.loads(content)
-
-        # 補回原始資料
-        for item in results:
-            idx = item.get("index", 1) - 1
-            if 0 <= idx < len(candidates):
-                item["url"] = candidates[idx].get("url", "")
-                item["source"] = candidates[idx].get("source", "")
+        extracted_data = json.loads(content)
+        
+        results = []
+        title_map = {item["title"].lower(): item for item in candidates}
+        
+        for d in extracted_data:
+            llm_title = d.get("title", "").lower()
+            matched_item = None
+            
+            if llm_title:
+                # 1. 精確匹配
+                matched_item = title_map.get(llm_title)
+                # 2. 局部匹配
+                if not matched_item:
+                    for full_title, item_obj in title_map.items():
+                        if llm_title in full_title or full_title in llm_title:
+                            matched_item = item_obj
+                            break
+            
+            # 備選方法：如果是 ID
+            if not matched_item and "id" in d:
+                idx = d.get("id")
+                if isinstance(idx, int) and 0 <= idx < len(candidates):
+                    matched_item = candidates[idx]
+            
+            if matched_item:
+                new_item = matched_item.copy()
+                new_item["mechanism"] = d.get("mechanism")
+                new_item["explanation"] = d.get("explanation")
+                results.append(new_item)
 
         print(f"LLM 過濾完成：Top {len(results)} 則有科普潛力的時事")
         return results[:5]
@@ -223,16 +275,21 @@ def run_trend_pipeline() -> dict:
 
     # Step 1: RSS
     news_articles = fetch_news_rss()
+    
+    # 新增: Google Trends
+    trend_articles = fetch_google_trends()
+    
+    all_articles = news_articles + trend_articles
 
-    if not news_articles:
-        print("⚠️ RSS 無法取得新聞")
+    if not all_articles:
+        print("⚠️ 無法取得任何新聞或趨勢")
         return {
             "trends": [],
-            "error": "無法取得台灣新聞 RSS"
+            "error": "無法讀取新聞或 Google Trends"
         }
 
     # Step 2: LLM 過濾 + 機制抽象化
-    top_trends = filter_and_extract_mechanisms(news_articles)
+    top_trends = filter_and_extract_mechanisms(all_articles)
 
     result_data = {
         "trends": top_trends

@@ -169,11 +169,14 @@ def save_social(items: list):
         social_id = c.lastrowid
         if not social_id:
             c.execute("SELECT id FROM social_items WHERE url=?", (item["url"],))
-            social_id = c.fetchone()[0]
+            row = c.fetchone()
+            social_id = row[0] if row else None
+        
+        if not social_id:
+            continue
             
-        # 2. 若為動漫類且有 Meme，插入/更新 anime_memes
+        # 2. 若有新的 Meme 資料，直接新增（保留所有歷史梗解釋）
         if "anime_meme" in item:
-            c.execute("DELETE FROM anime_memes WHERE social_item_id=?", (social_id,))
             meme = item["anime_meme"]
             related_topics = json.dumps(meme.get("related_topics", []), ensure_ascii=False)
             c.execute('''
@@ -246,11 +249,13 @@ def fetch_latest_social(limit=15):
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
-    # Left join 以便抓取 meme
+    # Left join 只取每個 social_item 最新的一筆 meme（DB 中全部保留）
     c.execute('''
         SELECT s.*, a.anime_name, a.meme_content, a.related_topics_json
         FROM social_items s
-        LEFT JOIN anime_memes a ON s.id = a.social_item_id
+        LEFT JOIN anime_memes a ON a.id = (
+            SELECT MAX(a2.id) FROM anime_memes a2 WHERE a2.social_item_id = s.id
+        )
         ORDER BY s.created_at DESC LIMIT ?
     ''', (limit,))
     

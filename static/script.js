@@ -94,6 +94,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (src.includes('溫度計') || src.includes('dailyview')) {
             return `<span class="pipeline-badge dv-badge"><i class="fa-solid fa-temperature-half"></i> 網路溫度計</span>`;
         }
+        if (src.includes('google trends') || src.includes('google趨勢')) {
+            return `<span class="pipeline-badge gt-badge"><i class="fa-brands fa-google"></i> Google 熱搜</span>`;
+        }
         if (src.includes('自由時報') || src.includes('公視') || src.includes('news')) {
             const name = item.source || '新聞';
             return `<span class="pipeline-badge news-badge"><i class="fa-solid fa-newspaper"></i> ${name}</span>`;
@@ -137,10 +140,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const id = item.url || item.id || `${cardType}-${index}`;
         const title = item.title || '無標題';
         const summary = item.summary || '';
-        // Tags: science = mechanism, social = anime meme as tag
+        // Tags: show mechanism if exists, else show anime meme
         let mechanism = '';
-        if (cardType === 'science' && item.mechanism) {
-            mechanism = `<div class="mechanism-tag science-mechanism"><i class="fa-solid fa-atom"></i> ${item.mechanism}</div>`;
+        if (item.mechanism) {
+            const icon = (cardType === 'science') ? 'fa-atom' : 'fa-brain';
+            const cls = (cardType === 'science') ? 'science-mechanism' : 'trend-mechanism';
+            mechanism = `<div class="mechanism-tag ${cls}"><i class="fa-solid ${icon}"></i> ${item.mechanism}</div>`;
         } else if (item.anime_meme && item.anime_meme.anime) {
             const memeText = `${item.anime_meme.anime}：${item.anime_meme.meme || ''}`;
             mechanism = `<div class="mechanism-tag trend-mechanism"><i class="fa-solid fa-masks-theater"></i> ${memeText}</div>`;
@@ -161,6 +166,16 @@ document.addEventListener('DOMContentLoaded', () => {
             badgeHtml = pipelineBadge + getCredibilityBadge(item);
         } else {
             badgeHtml = getSourceBadge(item);
+            // Add Category Badge if specific
+            if (item.category && item.category !== 'social_trend' && item.category !== 'trend') {
+                const catLabels = { 
+                    'gaming_meme': '遊戲迷因', 
+                    'anime': '動漫相關', 
+                    'meme': '網路梗圖'
+                };
+                const catLabel = catLabels[item.category] || item.category;
+                badgeHtml += `<span class="pipeline-badge category-badge">${catLabel}</span>`;
+            }
         }
 
         // Source link
@@ -446,7 +461,7 @@ document.addEventListener('DOMContentLoaded', () => {
             "分析機制延伸潛力...",
             "ChromaDB 向量配對中...",
             "Proposer Phase 2: 三角度 Hook 生成...",
-            "生成【黑色幽默 / 動漫機制 / 懸疑對比】文案...",
+            "生成【時事生活 / 動漫機制 / 懸疑對比】文案...",
             "Critic Agent 嚴格審查中...",
             "執行代換測試 (Substitution Test)...",
             "Multi-Agent Debate 進行中...",
@@ -565,12 +580,12 @@ document.addEventListener('DOMContentLoaded', () => {
             .map(([key, val]) => {
                 const label = labels[key] || key;
                 // 優先判定 Science 為 4 分，其餘設為 3 分
-                let maxScore = 3; 
+                let maxScore = 3;
                 const lowerKey = key.toLowerCase();
                 if (lowerKey.includes('science') || lowerKey.includes('first')) {
                     maxScore = 4;
                 }
-                
+
                 const normalizedScore = (val / maxScore) * 10;
                 const color = getScoreColor(normalizedScore);
                 return `<div class="breakdown-item">
@@ -781,6 +796,44 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    /* ═══════════════════════════════════════════
+   圖片放大燈箱 (Lightbox) 邏輯
+   ═══════════════════════════════════════════ */
+
+    // 1. 使用事件委派監聽全域點擊 (確保未來 AI 動態生成的卡片圖片也能點)
+    document.addEventListener('click', function (e) {
+        if (e.target.classList.contains('card-thumbnail')) {
+            // ⚡ 關鍵：阻止事件冒泡，避免觸發卡片的 selectCard()
+            e.stopPropagation();
+            openImageModal(e.target.src);
+        }
+    });
+
+    // 2. 開啟燈箱
+    function openImageModal(src) {
+        const modal = document.getElementById('imageModal');
+        const modalImg = document.getElementById('modalImage');
+        modalImg.src = src;
+        modal.classList.remove('hidden');
+    }
+
+    // 3. 關閉燈箱
+    function closeImageModal() {
+        const modal = document.getElementById('imageModal');
+        modal.classList.add('hidden');
+        // 稍微延遲清空圖片來源，避免關閉動畫卡頓
+        setTimeout(() => {
+            document.getElementById('modalImage').src = '';
+        }, 300);
+    }
+
+    // 4. 點擊燈箱「背景」也能自動關閉
+    document.getElementById('imageModal')?.addEventListener('click', function (e) {
+        // 確保點擊的是背景，而不是圖片本身
+        if (e.target === this) {
+            closeImageModal();
+        }
+    });
     // ─── Init ───
 
     initTabs();

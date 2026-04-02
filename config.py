@@ -20,23 +20,19 @@ TAIWAN_NEWS_RSS = [
     "https://news.pts.org.tw/xml/newsfeed.xml"
 ]
 
+GOOGLE_TRENDS_RSS = "https://trends.google.com/trending/rss?geo=TW"
+
 # ═══════════════════════════════════════════════
-#  4. 社群來源設定 (Social / Anime / Memes) (V3)
+#  4. 社群與趨勢來源設定 (Scrapers) (V3)
 # ═══════════════════════════════════════════════
 
+# 網路溫度計 API
+DAILYVIEW_API = "https://medium.gaii.ai/api/articleMedia?web_id=dailyview&title=_&type=hot&t=1&guess=73"
+
+# 瓦特兄弟官網
+WATTBROTHER_URL = "https://wattbrother.com/c/game_meme"
+
 TARGET_SOCIAL_CHANNELS = [
-    {
-        "id": "UCSVc4yR7dC_6w6v-nQo1HCA",  # 瓦特兄弟
-        "name": "瓦特兄弟",
-        "category": "gaming_meme",
-        "fetch_shorts_only": False
-    },
-    {
-        "id": "UCE0f-fAIT5o0SjYw9T24yBQ",  # 網路溫度計 DailyView
-        "name": "網路溫度計",
-        "category": "social_trend",
-        "fetch_shorts_only": False
-    },
     {
         "id": "UCgdwtyqBunlRb-i-7PnCssQ",  # 木棉花 (Muse Communication)
         "name": "木棉花",

@@ -206,7 +206,7 @@ def _run_critic(llm, generated_json_str: str, core_mechanism: str) -> dict:
 
 請執行「替換測試 (Substitution Test)」與評分迴圈：
 1. 科學先決 (0-4 分)：Science Core 是否紮實？如果把科學術語換成魔法，文章是否瞬間不合理？如果一樣合理 = 0 分。
-2. Hook 吸引力 (0-3 分)：3 個 Hook 是否分別達到了幽默、迷因、懸疑的效果？
+2. Hook 吸引力 (0-3 分)：3 個 Hook 是否分別達到了幽默、迷因、懸疑的效果？每個HOOK有達成加一分
 3. 格式正確性 (0-3 分)：是否有 3 個 Hook？
 
 你必須且只能回傳以下格式的純 JSON（不要加 markdown 標記、不要加任何說明文字）：
