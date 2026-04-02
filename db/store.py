@@ -166,11 +166,14 @@ def save_social(items: list):
             item.get("thumbnail", "")
         ))
         
-        social_id = c.lastrowid
-        if not social_id:
-            c.execute("SELECT id FROM social_items WHERE url=?", (item["url"],))
-            row = c.fetchone()
-            social_id = row[0] if row else None
+        # Always query by URL to get the correct social_id.
+        # lastrowid is unreliable with ON CONFLICT DO UPDATE — it may
+        # return the rowid from a *previous* INSERT in this loop when
+        # the current row already existed, causing meme data to be
+        # saved against the wrong social item.
+        c.execute("SELECT id FROM social_items WHERE url=?", (item["url"],))
+        row = c.fetchone()
+        social_id = row[0] if row else None
         
         if not social_id:
             continue
