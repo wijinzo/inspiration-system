@@ -173,7 +173,7 @@ def _run_proposer(llm, context_str: str, core_mechanism: str) -> str:
 
 任務要求：
 1. 先寫出一段紮實的【科學核心分析】(Science Core) 約 300 字，必須解釋 {core_mechanism} 到底是如何運作的，不能只有空殼。
-2. 基於這套科學邏輯，產出三個對應不同受眾的【Hook 引入視角】（純腦洞腳本開場口白，約150字內）。
+2. 基於這套科學邏輯，產出三個對應不同受眾的【Hook 引入視角】（純腦洞腳本開場口白，約1000字）。
    - Hook 1 (Humor/Daily): 結合時事或生活日常的幽默視角
    - Hook 2 (Anime/Meme): 結合動漫梗或網路迷因視角
    - Hook 3 (Mystery/Curiosity): 提供強烈反差感、懸疑感的視角

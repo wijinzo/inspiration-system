@@ -12,6 +12,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let currentData = null;
 
+    // ─── Pagination State (for Infinite Scroll) ───
+    const PAGE_SIZE = 15;
+    const paginationState = {
+        science: { page: 1, total: 0, loading: false, done: false },
+        social:  { page: 1, total: 0, loading: false, done: false },
+        news:    { page: 1, total: 0, loading: false, done: false },
+    };
+
     // ─── DOM Refs ───
     const generateBtn = document.getElementById('generateBtn');
     const surpriseBtn = document.getElementById('surpriseBtn');
@@ -370,42 +378,84 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ─── Data Loading ───
+    // ─── Data Loading (Paginated) ───
+
+    async function loadPage(type, page) {
+        const apiMap = {
+            science: '/api/data/science',
+            social:  '/api/data/social',
+            news:    '/api/data/trends',
+        };
+        const listMap = {
+            science: scienceList,
+            social:  socialList,
+            news:    newsList,
+        };
+        const cardTypeMap = {
+            science: 'science',
+            social:  'social',
+            news:    'trend',
+        };
+
+        const state = paginationState[type];
+        if (state.loading || state.done) return;
+        state.loading = true;
+
+        // Show a small loading indicator at the bottom
+        const listEl = listMap[type];
+        const loaderEl = document.createElement('div');
+        loaderEl.className = 'scroll-loader';
+        loaderEl.innerHTML = '<div class="spinner" style="width:24px;height:24px;"></div>';
+        listEl.parentElement.querySelector('.scroll-anchor')?.before(loaderEl);
+
+        try {
+            const res = await fetch(`${apiMap[type]}?page=${page}&limit=${PAGE_SIZE}`);
+            const result = await res.json();
+            const items = result.data || [];
+            state.total = result.total || 0;
+
+            if (items.length === 0 || (page - 1) * PAGE_SIZE + items.length >= state.total) {
+                state.done = true;
+            }
+
+            const existingCount = listEl.querySelectorAll('.data-card').length;
+            const html = items.map((item, i) => renderCard(item, existingCount + i, cardTypeMap[type])).join('');
+            listEl.insertAdjacentHTML('beforeend', html);
+
+            state.page = page + 1;
+        } catch (err) {
+            console.error(`載入 ${type} 第 ${page} 頁失敗:`, err);
+        } finally {
+            loaderEl.remove();
+            state.loading = false;
+        }
+    }
 
     async function loadCachedData() {
-        try {
-            const [trendsRes, socialRes, scienceRes] = await Promise.all([
-                fetch('/api/data/trends').then(r => r.json()),
-                fetch('/api/data/social').then(r => r.json()),
-                fetch('/api/data/science').then(r => r.json())
-            ]);
-
-            const trends = trendsRes.data || [];
-            const social = socialRes.data || [];
-            const science = scienceRes.data || [];
-
-            // Render science cards
-            scienceList.innerHTML = science.map((s, i) => renderCard(s, i, 'science')).join('');
-
-            // Render social cards
-            socialList.innerHTML = social.map((s, i) => renderCard(s, i, 'social')).join('');
-
-            // Render news/trends cards
-            newsList.innerHTML = trends.map((t, i) => renderCard(t, i, 'trend')).join('');
-
-            // Load keywords
-            loadKeywords();
-
-            // Reset selection state
-            selectedState.science = null;
-            selectedState.spice = null;
-            updateSelectionBar('science', null);
-            updateSelectionBar('spice', null);
-            updateGenerateBtn();
-
-        } catch (err) {
-            console.error('載入快取資料失敗:', err);
+        // Reset pagination
+        for (const key of Object.keys(paginationState)) {
+            paginationState[key] = { page: 1, total: 0, loading: false, done: false };
         }
+        scienceList.innerHTML = '';
+        socialList.innerHTML = '';
+        newsList.innerHTML = '';
+
+        // Load first page for each
+        await Promise.all([
+            loadPage('science', 1),
+            loadPage('social', 1),
+            loadPage('news', 1),
+        ]);
+
+        // Load keywords
+        loadKeywords();
+
+        // Reset selection state
+        selectedState.science = null;
+        selectedState.spice = null;
+        updateSelectionBar('science', null);
+        updateSelectionBar('spice', null);
+        updateGenerateBtn();
     }
 
     async function loadKeywords() {
@@ -834,11 +884,180 @@ document.addEventListener('DOMContentLoaded', () => {
             closeImageModal();
         }
     });
+
+    // ─── Infinite Scroll (Intersection Observer) ───
+
+    function initInfiniteScroll() {
+        const observerOptions = { root: null, rootMargin: '200px', threshold: 0 };
+
+        const anchors = {
+            science: document.getElementById('scienceAnchor'),
+            social:  document.getElementById('socialAnchor'),
+            news:    document.getElementById('newsAnchor'),
+        };
+
+        for (const [type, anchor] of Object.entries(anchors)) {
+            if (!anchor) continue;
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const state = paginationState[type];
+                        if (!state.loading && !state.done) {
+                            loadPage(type, state.page);
+                        }
+                    }
+                });
+            }, observerOptions);
+            observer.observe(anchor);
+        }
+    }
+
+    // ─── Sync Button ───
+
+    const syncBtn = document.getElementById('syncBtn');
+    if (syncBtn) {
+        syncBtn.addEventListener('click', async () => {
+            const overlay = document.getElementById('syncOverlay');
+            const statusText = document.getElementById('syncStatusText');
+            const progressFill = document.getElementById('syncProgressFill');
+
+            overlay.classList.remove('hidden');
+            syncBtn.disabled = true;
+            syncBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 同步中...';
+
+            const steps = [
+                { api: '/api/crawl/trends',  label: '正在爬取新聞資料...', pct: '33%' },
+                { api: '/api/crawl/social',   label: '正在爬取社群資料...', pct: '66%' },
+                { api: '/api/crawl/science',  label: '正在爬取科學文獻...', pct: '90%' },
+            ];
+
+            try {
+                for (const step of steps) {
+                    statusText.textContent = step.label;
+                    progressFill.style.width = step.pct;
+                    await fetch(step.api, { method: 'POST' });
+                }
+                statusText.textContent = '同步完成！正在重新載入畫面...';
+                progressFill.style.width = '100%';
+                await loadCachedData();
+            } catch (err) {
+                statusText.textContent = `同步失敗：${err.message}`;
+            } finally {
+                setTimeout(() => {
+                    overlay.classList.add('hidden');
+                    progressFill.style.width = '0%';
+                    syncBtn.disabled = false;
+                    syncBtn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> 同步資料';
+                }, 800);
+            }
+        });
+    }
+
+    // ─── DB Viewer Modal ───
+
+    const dbBtn = document.getElementById('dbBtn');
+    const dbModal = document.getElementById('dbModal');
+    let dbDataCache = { science: [], social: [], trends: [] };
+
+    window.closeDbModal = function () {
+        dbModal.classList.add('hidden');
+    };
+
+    if (dbBtn) {
+        dbBtn.addEventListener('click', async () => {
+            dbModal.classList.remove('hidden');
+            await loadDbData();
+        });
+    }
+
+    // DB Tab switching
+    document.querySelectorAll('.db-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.db-tab-btn').forEach(b => b.classList.remove('db-tab-btn--active'));
+            btn.classList.add('db-tab-btn--active');
+            const target = btn.dataset.dbtab;
+            document.querySelectorAll('.db-panel').forEach(p => p.classList.add('hidden'));
+            const panelMap = {
+                'db-science': 'dbPanelScience',
+                'db-social':  'dbPanelSocial',
+                'db-trends':  'dbPanelTrends',
+            };
+            document.getElementById(panelMap[target])?.classList.remove('hidden');
+        });
+    });
+
+    async function loadDbData() {
+        try {
+            const [sciRes, socRes, trnRes] = await Promise.all([
+                fetch('/api/data/science?page=1&limit=500').then(r => r.json()),
+                fetch('/api/data/social?page=1&limit=500').then(r => r.json()),
+                fetch('/api/data/trends?page=1&limit=500').then(r => r.json()),
+            ]);
+
+            dbDataCache.science = sciRes.data || [];
+            dbDataCache.social = socRes.data || [];
+            dbDataCache.trends = trnRes.data || [];
+
+            document.getElementById('dbCountScience').textContent = sciRes.total || dbDataCache.science.length;
+            document.getElementById('dbCountSocial').textContent = socRes.total || dbDataCache.social.length;
+            document.getElementById('dbCountTrends').textContent = trnRes.total || dbDataCache.trends.length;
+
+            renderDbTable('science', dbDataCache.science);
+            renderDbTable('social', dbDataCache.social);
+            renderDbTable('trends', dbDataCache.trends);
+        } catch (err) {
+            console.error('DB Viewer 載入失敗:', err);
+        }
+    }
+
+    function renderDbTable(type, items) {
+        const bodyMap = {
+            science: 'dbBodyScience',
+            social:  'dbBodySocial',
+            trends:  'dbBodyTrends',
+        };
+        const tbody = document.getElementById(bodyMap[type]);
+        if (!tbody) return;
+
+        tbody.innerHTML = items.map((item, i) => {
+            const title = item.title || '無標題';
+            const source = item.source || item.pipeline || '—';
+            const col3 = type === 'social' ? (item.category || '—') : (item.mechanism || '—');
+            const time = item.created_at ? new Date(item.created_at).toLocaleDateString('zh-TW') : '—';
+            const link = item.url
+                ? `<a href="${item.url}" target="_blank" class="db-link"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>`
+                : '—';
+            return `<tr>
+                <td>${i + 1}</td>
+                <td class="db-cell-title" title="${title}">${title}</td>
+                <td>${source}</td>
+                <td>${col3}</td>
+                <td>${time}</td>
+                <td>${link}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    // DB Search filter
+    const dbSearchInput = document.getElementById('dbSearchInput');
+    if (dbSearchInput) {
+        dbSearchInput.addEventListener('input', () => {
+            const q = dbSearchInput.value.trim().toLowerCase();
+            for (const type of ['science', 'social', 'trends']) {
+                const filtered = q
+                    ? dbDataCache[type].filter(item => (item.title || '').toLowerCase().includes(q))
+                    : dbDataCache[type];
+                renderDbTable(type, filtered);
+            }
+        });
+    }
+
     // ─── Init ───
 
     initTabs();
     initHookTabs();
     initSlotClicks();
+    initInfiniteScroll();
     loadCachedData();
 
 });

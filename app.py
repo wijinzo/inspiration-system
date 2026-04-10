@@ -33,16 +33,19 @@ async def read_index():
 # ─── Data API (獲取資料庫內容) ───
 
 @app.get("/api/data/trends")
-def get_trends():
-    return store.fetch_latest_trends()
+def get_trends(page: int = 1, limit: int = 15):
+    offset = (page - 1) * limit
+    return store.fetch_latest_trends(limit=limit, offset=offset)
 
 @app.get("/api/data/social")
-def get_social():
-    return store.fetch_latest_social()
+def get_social(page: int = 1, limit: int = 15):
+    offset = (page - 1) * limit
+    return store.fetch_latest_social(limit=limit, offset=offset)
 
 @app.get("/api/data/science")
-def get_science():
-    return store.fetch_latest_science()
+def get_science(page: int = 1, limit: int = 15):
+    offset = (page - 1) * limit
+    return store.fetch_latest_science(limit=limit, offset=offset)
 
 @app.get("/api/history")
 def get_history():

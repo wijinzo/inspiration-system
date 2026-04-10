@@ -233,21 +233,24 @@ def save_history(payload: dict):
 
 # ─── Data Fetching (Frontend API) ───
 
-def fetch_latest_science(limit=15):
+def fetch_latest_science(limit=15, offset=0):
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
-    c.execute("SELECT * FROM science_articles ORDER BY created_at DESC LIMIT ?", (limit,))
+    c.execute("SELECT * FROM science_articles ORDER BY created_at DESC LIMIT ? OFFSET ?", (limit, offset))
     rows = c.fetchall()
+    
+    c.execute("SELECT COUNT(*) FROM science_articles")
+    total = c.fetchone()[0]
     
     c.execute("SELECT MAX(created_at) FROM science_articles")
     last_updated = c.fetchone()[0]
     conn.close()
     
     data = [dict(r) for r in rows]
-    return {"data": data, "last_updated": last_updated}
+    return {"data": data, "last_updated": last_updated, "total": total}
 
-def fetch_latest_social(limit=15):
+def fetch_latest_social(limit=15, offset=0):
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
@@ -259,10 +262,13 @@ def fetch_latest_social(limit=15):
         LEFT JOIN anime_memes a ON a.id = (
             SELECT MAX(a2.id) FROM anime_memes a2 WHERE a2.social_item_id = s.id
         )
-        ORDER BY s.created_at DESC LIMIT ?
-    ''', (limit,))
+        ORDER BY s.created_at DESC LIMIT ? OFFSET ?
+    ''', (limit, offset))
     
     rows = c.fetchall()
+    
+    c.execute("SELECT COUNT(*) FROM social_items")
+    total = c.fetchone()[0]
     
     c.execute("SELECT MAX(created_at) FROM social_items")
     last_updated = c.fetchone()[0]
@@ -286,21 +292,24 @@ def fetch_latest_social(limit=15):
             }
         data.append(d)
         
-    return {"data": data, "last_updated": last_updated}
+    return {"data": data, "last_updated": last_updated, "total": total}
 
-def fetch_latest_trends(limit=15):
+def fetch_latest_trends(limit=15, offset=0):
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
-    c.execute("SELECT * FROM trend_items ORDER BY created_at DESC LIMIT ?", (limit,))
+    c.execute("SELECT * FROM trend_items ORDER BY created_at DESC LIMIT ? OFFSET ?", (limit, offset))
     rows = c.fetchall()
+    
+    c.execute("SELECT COUNT(*) FROM trend_items")
+    total = c.fetchone()[0]
     
     c.execute("SELECT MAX(created_at) FROM trend_items")
     last_updated = c.fetchone()[0]
     conn.close()
     
     data = [dict(r) for r in rows]
-    return {"data": data, "last_updated": last_updated}
+    return {"data": data, "last_updated": last_updated, "total": total}
 
 def fetch_generation_history(limit=50):
     conn = get_connection()

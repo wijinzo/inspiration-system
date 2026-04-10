@@ -1333,3 +1333,265 @@ details[open] .collapse-icon {
 .image-modal-close:hover {
     color: var(--accent-color);
 }
+
+/* ═══ Accent Button (Sync) ═══ */
+.btn-accent {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    border: none;
+}
+.btn-accent:hover {
+    transform: scale(1.03);
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.4);
+}
+.btn-accent:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* ═══ Scroll Anchor & Loader ═══ */
+.scroll-anchor {
+    height: 1px;
+    width: 100%;
+}
+.scroll-loader {
+    display: flex;
+    justify-content: center;
+    padding: 12px 0;
+}
+
+/* ═══ Global Sync Overlay ═══ */
+.sync-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: rgba(2, 6, 23, 0.85);
+    backdrop-filter: blur(10px);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.sync-overlay.hidden { display: none; }
+
+.sync-overlay__content {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    color: var(--text-color);
+}
+.sync-overlay__content p {
+    font-size: 0.95rem;
+    font-weight: 500;
+    animation: pulse-text 1.5s infinite;
+}
+.sync-spinner {
+    width: 44px; height: 44px;
+    border: 3px solid rgba(255,255,255,0.1);
+    border-radius: 50%;
+    border-top-color: #10b981;
+    animation: spin 0.8s linear infinite;
+}
+.sync-progress-bar {
+    width: 220px; height: 6px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.sync-progress-fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, #10b981, #3b82f6);
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
+
+/* ═══ DB Viewer Modal ═══ */
+.db-modal {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    z-index: 2000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.db-modal.hidden { display: none; }
+
+.db-modal__backdrop {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(6px);
+}
+
+.db-modal__panel {
+    position: relative;
+    width: 90vw;
+    max-width: 1100px;
+    height: 80vh;
+    border-radius: var(--radius-lg);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: fadeIn 0.25s ease;
+}
+
+.db-modal__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+.db-modal__header h2 {
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(90deg, #60a5fa, #c084fc);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+.db-modal__tools {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* DB Search Box */
+.db-search-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0,0,0,0.25);
+    border: 1px solid var(--border-color);
+    border-radius: 2rem;
+    padding: 6px 14px;
+    transition: border-color 0.2s;
+}
+.db-search-box:focus-within {
+    border-color: var(--accent-color);
+}
+.db-search-box i {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+.db-search-box input {
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text-color);
+    font-family: inherit;
+    font-size: 0.85rem;
+    width: 180px;
+}
+.db-search-box input::placeholder {
+    color: var(--text-muted);
+}
+
+/* DB Tabs */
+.db-tabs {
+    display: flex;
+    gap: 0;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--glass-bg);
+    flex-shrink: 0;
+}
+.db-tab-btn {
+    padding: 10px 16px;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.2s, border-color 0.2s;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.db-tab-btn:hover { color: var(--text-color); }
+.db-tab-btn--active {
+    color: var(--accent-color);
+    border-bottom-color: var(--accent-color);
+    font-weight: 600;
+}
+.db-count {
+    font-size: 0.7rem;
+    background: rgba(99,102,241,0.2);
+    color: #818cf8;
+    padding: 1px 7px;
+    border-radius: 2rem;
+    font-weight: 600;
+}
+
+/* DB Table Wrapper */
+.db-table-wrapper {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+.db-panel { padding: 0; }
+.db-panel.hidden { display: none; }
+
+/* DB Table */
+.db-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+    color: var(--text-color);
+}
+.db-table thead { position: sticky; top: 0; z-index: 1; }
+.db-table th {
+    font-weight: 600;
+    color: var(--text-muted);
+    background: rgba(0,0,0,0.35);
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+    white-space: nowrap;
+}
+.db-table td {
+    padding: 9px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    vertical-align: middle;
+}
+.db-table tbody tr {
+    transition: background 0.15s;
+}
+.db-table tbody tr:hover td {
+    background: rgba(255,255,255,0.04);
+}
+.db-cell-title {
+    max-width: 340px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.db-link {
+    color: var(--accent-color);
+    text-decoration: none;
+    font-size: 0.85rem;
+    transition: color 0.2s;
+}
+.db-link:hover {
+    color: #818cf8;
+}
+
+/* DB Table Scrollbar */
+.db-table-wrapper::-webkit-scrollbar { width: 6px; }
+.db-table-wrapper::-webkit-scrollbar-track { background: transparent; }
+.db-table-wrapper::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+.db-table-wrapper::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
