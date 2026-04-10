@@ -37,7 +37,7 @@ def fetch_news_rss():
     回傳: [{"title": str, "summary": str, "url": str, "source": str}]
     """
     articles = []
-    print("正在抓取台灣新聞 RSS...")
+    print("Fetching Taiwan News RSS...")
 
     for feed_url in TAIWAN_NEWS_RSS:
         try:
@@ -61,25 +61,25 @@ def fetch_news_rss():
                     "url": url,
                     "source": source,
                 })
-            print(f"  {source}: 取得 {min(len(feed.entries), 30)} 篇")
+            print(f"  {source}: Found {min(len(feed.entries), 30)} items")
         except Exception as e:
             print(f"  ⚠️ RSS 抓取失敗 ({feed_url}): {e}")
 
-    print(f"RSS 共取得 {len(articles)} 篇台灣新聞")
+    print(f"RSS total: {len(articles)} Taiwan news articles")
     return articles
 
 
 def _identify_source(url: str) -> str:
     if "ltn" in url:
-        return "自由時報"
+        return "Liberty Times"
     elif "pts" in url:
-        return "公視新聞"
-    return "其他"
+        return "PTS News"
+    return "Others"
 
 
 def fetch_google_trends():
     """從 Google Trends RSS 抓取台灣每日熱搜關鍵字。"""
-    print(f"正在抓取 Google Trends (TW)...")
+    print(f"Fetching Google Trends (TW)...")
     articles = []
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
@@ -102,9 +102,9 @@ def fetch_google_trends():
                 "source": "Google Trends",
                 "matched_keywords": [title]
             })
-        print(f"  Google Trends: 取得 {len(articles)} 條熱搜關鍵字")
+        print(f"  [OK] Google Trends: Found {len(articles)} trending keywords")
     except Exception as e:
-        print(f"  ⚠️ Google Trends 抓取失敗: {e}")
+        print(f"  [Error] Google Trends fetch failed: {e}")
     return articles
 
 
@@ -165,7 +165,7 @@ def filter_and_extract_mechanisms(articles: list, trends_keywords: list = None) 
     chain = prompt | llm
 
     try:
-        print("LLM 過濾中：剔除政治八卦 + 提取底層機制...")
+        print("LLM is filtering topics: Filtering politics/slang + extracting mechanisms...")
         response = chain.invoke({
             "articles_text": articles_text
         })
@@ -202,7 +202,7 @@ def filter_and_extract_mechanisms(articles: list, trends_keywords: list = None) 
                 new_item["explanation"] = d.get("explanation")
                 results.append(new_item)
 
-        print(f"LLM 過濾完成：Top {len(results)} 則有科普潛力的時事")
+        print(f"LLM filtering complete: Top {len(results)} items with potential")
         return results[:5]
 
     except (json.JSONDecodeError, TypeError) as e:
@@ -270,7 +270,7 @@ def run_trend_pipeline() -> dict:
     }
     """
     print("\n" + "=" * 50)
-    print("Module 1: 台灣新聞時事爬取")
+    print("Module 1: Taiwan News & Trends Retrieval")
     print("=" * 50)
 
     # Step 1: RSS
@@ -282,10 +282,10 @@ def run_trend_pipeline() -> dict:
     all_articles = news_articles + trend_articles
 
     if not all_articles:
-        print("⚠️ 無法取得任何新聞或趨勢")
+        print("[Warning] Failed to fetch any news or trends")
         return {
             "trends": [],
-            "error": "無法讀取新聞或 Google Trends"
+            "error": "Cannot read news or Google Trends"
         }
 
     # Step 2: LLM 過濾 + 機制抽象化
@@ -295,12 +295,12 @@ def run_trend_pipeline() -> dict:
         "trends": top_trends
     }
 
-    print(f"\nModule 1 完成：取得 {len(top_trends)} 則有科普潛力的新聞時事")
+    print(f"\nModule 1 Complete: Found {len(top_trends)} potential news items")
     
     from db.store import save_trend
     if top_trends:
-        save_trend(top_trends)
-        print("✅ 新聞時事已寫入資料庫")
+        stats = save_trend(top_trends)
+        print(f"[OK] Trends written to database (Added {stats['inserted']} / Updated {stats['updated']})")
         
     return result_data
 

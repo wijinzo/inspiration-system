@@ -26,8 +26,8 @@ GOOGLE_TRENDS_RSS = "https://trends.google.com/trending/rss?geo=TW"
 #  4. 社群與趨勢來源設定 (Scrapers) (V3)
 # ═══════════════════════════════════════════════
 
-# 網路溫度計 API
-DAILYVIEW_API = "https://medium.gaii.ai/api/articleMedia?web_id=dailyview&title=_&type=hot&t=1&guess=73"
+# 網路溫度計（改用網頁爬取，舊 API 已失效）
+DAILYVIEW_URL = "https://dailyview.tw/popular"
 
 # 瓦特兄弟官網
 WATTBROTHER_URL = "https://wattbrother.com/c/game_meme"

@@ -124,11 +124,14 @@ def init_db():
 
 # ─── Data Saving (Crawlers) ───
 
-def save_science(articles: list):
-    """保存或更新科學文獻"""
+def save_science(articles: list) -> dict:
+    """保存或更新科學文獻，回傳 {inserted, updated} 統計"""
     conn = get_connection()
     c = conn.cursor()
+    inserted, updated = 0, 0
     for a in articles:
+        c.execute("SELECT 1 FROM science_articles WHERE url=?", (a["url"],))
+        exists = c.fetchone() is not None
         c.execute('''
             INSERT INTO science_articles 
             (title, summary, url, source, pipeline, mechanism, credibility_score)
@@ -141,15 +144,25 @@ def save_science(articles: list):
             a.get("source", ""), a.get("pipeline", ""),
             a.get("mechanism", ""), a.get("credibility_score", 1)
         ))
+        if exists:
+            updated += 1
+        else:
+            inserted += 1
     conn.commit()
     conn.close()
+    return {"inserted": inserted, "updated": updated}
 
 
-def save_social(items: list):
-    """保存社群資料與關聯動漫梗"""
+def save_social(items: list) -> dict:
+    """保存社群資料與關聯動漫梗，回傳 {inserted, updated} 統計"""
     conn = get_connection()
     c = conn.cursor()
+    inserted, updated = 0, 0
     for item in items:
+        # 檢查是否已存在
+        c.execute("SELECT 1 FROM social_items WHERE url=?", (item["url"],))
+        exists = c.fetchone() is not None
+        
         # 1. 插入 Social Item
         c.execute('''
             INSERT INTO social_items 
@@ -165,6 +178,11 @@ def save_social(items: list):
             json.dumps(item.get("matched_keywords", [])),
             item.get("thumbnail", "")
         ))
+        
+        if exists:
+            updated += 1
+        else:
+            inserted += 1
         
         # Always query by URL to get the correct social_id.
         # lastrowid is unreliable with ON CONFLICT DO UPDATE — it may
@@ -189,13 +207,17 @@ def save_social(items: list):
             
     conn.commit()
     conn.close()
+    return {"inserted": inserted, "updated": updated}
 
 
-def save_trend(items: list):
-    """保存新聞時事資料"""
+def save_trend(items: list) -> dict:
+    """保存新聞時事資料，回傳 {inserted, updated} 統計"""
     conn = get_connection()
     c = conn.cursor()
+    inserted, updated = 0, 0
     for item in items:
+        c.execute("SELECT 1 FROM trend_items WHERE url=?", (item["url"],))
+        exists = c.fetchone() is not None
         c.execute('''
             INSERT INTO trend_items 
             (title, summary, url, source, mechanism, heat_score)
@@ -208,8 +230,13 @@ def save_trend(items: list):
             item.get("source", ""), item.get("mechanism", ""), 
             item.get("heat_score", 0)
         ))
+        if exists:
+            updated += 1
+        else:
+            inserted += 1
     conn.commit()
     conn.close()
+    return {"inserted": inserted, "updated": updated}
     
 def save_history(payload: dict):
     conn = get_connection()

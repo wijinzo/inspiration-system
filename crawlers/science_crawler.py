@@ -64,7 +64,7 @@ def fetch_science_rss() -> list:
     自動去重（sqlite3），回傳新文章列表。
     """
     articles = []
-    print("正在抓取科學 RSS feeds...")
+    print("Fetching Science RSS feeds...")
 
     for feed_url in SCIENCE_RSS_FEEDS:
         try:
@@ -101,11 +101,11 @@ def fetch_science_rss() -> list:
                 count += 1
 
             if count > 0:
-                print(f"  {source}: {count} 篇新文章")
+                print(f"  {source}: {count} new items")
         except Exception as e:
             print(f"  ⚠️ RSS 失敗 ({feed_url}): {e}")
 
-    print(f"管道 A 共取得 {len(articles)} 篇新科學文獻")
+    print(f"Pipeline A: Found {len(articles)} new science articles")
     return articles
 
 
@@ -164,7 +164,7 @@ def generate_science_queries(trend_keywords: list) -> list:
         content = _parse_json(response.content)
         queries = json.loads(content)
         if isinstance(queries, list):
-            print(f"LLM 生成 {len(queries)} 組英文 Query: {queries}")
+            print(f"LLM generated {len(queries)} English queries: {queries}")
             return queries[:BRAVE_SCIENCE_QUERIES]
     except Exception as e:
         print(f"⚠️ Query 生成失敗: {e}")
@@ -190,7 +190,7 @@ def fetch_brave_science(queries: list) -> list:
     url = "https://api.search.brave.com/res/v1/web/search"
 
     for i, query in enumerate(queries[:BRAVE_SCIENCE_QUERIES]):
-        print(f"  Brave 搜尋 [{i+1}/{BRAVE_SCIENCE_QUERIES}]: {query}")
+        print(f"  Brave Search [{i+1}/{BRAVE_SCIENCE_QUERIES}]: {query}")
 
         params = {"q": query, "count": 10, "freshness": "pw"}
         data = _brave_request_with_retry(url, headers, params)
@@ -223,7 +223,7 @@ def fetch_brave_science(queries: list) -> list:
             })
             mark_processed(item_url, item.get("title", ""), "Brave")
 
-    print(f"管道 B 共取得 {len(articles)} 篇新科學文獻")
+    print(f"Pipeline B: Found {len(articles)} new science articles")
     return articles
 
 
@@ -234,7 +234,7 @@ def _brave_request_with_retry(url: str, headers: dict, params: dict) -> dict | N
             resp = requests.get(url, headers=headers, params=params, timeout=15)
             if resp.status_code == 429:
                 wait = BRAVE_RETRY_BACKOFF[attempt] if attempt < len(BRAVE_RETRY_BACKOFF) else 8
-                print(f"    ⚠️ 429 Too Many Requests，等待 {wait}s 後重試...")
+                print(f"    [Warning] 429 Too Many Requests, waiting {wait}s...")
                 time.sleep(wait)
                 continue
             resp.raise_for_status()
@@ -264,7 +264,7 @@ def extract_science_mechanisms(articles: list) -> list:
     google_api_key = os.getenv("GOOGLE_API_KEY")
     if not google_api_key:
         for a in articles:
-            a["mechanism"] = "（未設定 API Key）"
+            a["mechanism"] = "(API Key not set)"
         return articles
 
     from langchain_google_genai import ChatGoogleGenerativeAI
@@ -299,7 +299,7 @@ def extract_science_mechanisms(articles: list) -> list:
     )
 
     try:
-        print("LLM 提取科學底層機制中...")
+        print("LLM is extracting scientific mechanisms...")
         response = (prompt | llm).invoke({"articles_text": articles_text})
         content = _parse_json(response.content)
         mechanisms = json.loads(content)
@@ -311,12 +311,12 @@ def extract_science_mechanisms(articles: list) -> list:
                 if item.get("plain_summary"):
                     articles[idx]["summary"] = item["plain_summary"]
 
-        print(f"成功提取 {len(mechanisms)} 篇的科學機制")
+        print(f"Successfully extracted mechanisms for {len(mechanisms)} articles")
     except Exception as e:
         print(f"⚠️ 機制提取失敗: {e}")
         for a in articles:
             if "mechanism" not in a:
-                a["mechanism"] = "（提取失敗）"
+                a["mechanism"] = "(Extraction failed)"
 
     return articles
 
@@ -365,7 +365,7 @@ def run_science_pipeline() -> list:
     回傳: [{title, summary, mechanism, url, source, pipeline, credibility_score}]
     """
     print("\n" + "=" * 50)
-    print("Module 2: 科學文獻檢索")
+    print("Module 2: Science Literature Retrieval")
     print("=" * 50)
 
     # 管道 A: RSS
@@ -375,9 +375,9 @@ def run_science_pipeline() -> list:
     queries = generate_science_queries([])
     brave_articles = fetch_brave_science(queries)
 
-    # 合併
+    # Merge
     all_articles = rss_articles + brave_articles
-    print(f"\n總計 {len(all_articles)} 篇科學文獻（RSS: {len(rss_articles)}, Brave: {len(brave_articles)}）")
+    print(f"\nTotal: {len(all_articles)} science articles (RSS: {len(rss_articles)}, Brave: {len(brave_articles)})")
 
     if not all_articles:
         return []
@@ -385,21 +385,20 @@ def run_science_pipeline() -> list:
     # 機制抽象化
     all_articles = extract_science_mechanisms(all_articles)
 
-    print(f"Module 2 完成：{len(all_articles)} 篇科學文獻 with mechanisms")
+    print(f"Module 2 Complete: {len(all_articles)} science articles with mechanisms")
     
     from db.store import save_science
     if all_articles:
         save_science(all_articles)
-        print("✅ 科學文獻已寫入資料庫")
+        print("[OK] Science articles written to database")
         
     return all_articles
 
 
-if __name__ == "__main__":
     articles = run_science_pipeline()
-    print("\n─── 結果 ───")
+    print("\n--- Results ---")
     for i, a in enumerate(articles[:5]):
         print(f"\n{i+1}. [{a.get('pipeline', '?')}] {a['title']}")
-        print(f"   星級: {'★'*a.get('credibility_score', 1)}{'☆'*(3-a.get('credibility_score', 1))}")
-        print(f"   機制: {a.get('mechanism', '無')}")
-        print(f"   摘要: {a['summary'][:80]}...")
+        print(f"   Score: {'*'*a.get('credibility_score', 1)}")
+        print(f"   Mechanism: {a.get('mechanism', 'None')}")
+        print(f"   Summary: {a['summary'][:80]}...")
