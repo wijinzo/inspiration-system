@@ -95,6 +95,24 @@ project_root/
 
 ## ⚙️ 快速上手
 
+### 安裝依賴
+```bash
+python -m venv venv
+.\venv\Scripts\Activate.ps1       # Windows PowerShell
+# source venv/bin/activate        # Mac/Linux
+pip install -r requirements.txt
+```
+### 配置環境變數
+創建一個.env檔案(同.env.example內容)，並輸入金鑰
+
+```env
+GOOGLE_API_KEY=您的Gemini金鑰
+BRAVE_API_KEY=您的BraveSearch金鑰
+YOUTUBE_API_KEY=您的YouTube金鑰
+```
+
+接下來開啟系統
+
 ### 方法 A：全自動啟動 (推薦)
 
 直接雙擊 `start.bat`，啟動器會自動檢測並執行以下流程：
@@ -107,30 +125,12 @@ project_root/
 
 ### 方法 B：手動啟動
 
-#### 1. 安裝依賴
-```bash
-python -m venv venv
-.\venv\Scripts\Activate.ps1       # Windows PowerShell
-# source venv/bin/activate        # Mac/Linux
-pip install -r requirements.txt
-```
-
-#### 2. 配置環境變數
-```bash
-copy .env.example .env
-```
-```env
-GOOGLE_API_KEY=您的Gemini金鑰
-BRAVE_API_KEY=您的BraveSearch金鑰
-YOUTUBE_API_KEY=您的YouTube金鑰
-```
-
-#### 3. 首次填充資料庫
+#### 2. 填充資料庫
 ```bash
 python populate_db.py
 ```
 
-#### 4. 啟動伺服器
+#### 3. 啟動伺服器
 ```bash
 uvicorn app:app --host 127.0.0.1 --port 8000 --reload
 ```
