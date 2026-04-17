@@ -380,8 +380,50 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.querySelectorAll('.hook-quote').forEach(q => q.classList.add('hidden'));
                 const hookEl = document.getElementById(`hookTab${idx}`);
                 if (hookEl) hookEl.classList.remove('hidden');
+                
+                if (typeof renderHookEvaluation === 'function') {
+                    renderHookEvaluation(parseInt(idx, 10));
+                }
             });
         });
+    }
+
+    function renderHookEvaluation(idx) {
+        const container = document.getElementById('hookEvalContainer');
+        const scoresEl = document.getElementById('hookEvalScores');
+        const commentEl = document.getElementById('hookEvalComment');
+        
+        if (!currentData || !currentData.hook_evaluations || currentData.hook_evaluations.length <= idx) {
+            if (container) container.classList.add('hidden');
+            return;
+        }
+
+        const evaluation = currentData.hook_evaluations[idx];
+        if (!evaluation || !container) {
+            if (container) container.classList.add('hidden');
+            return;
+        }
+
+        container.classList.remove('hidden');
+
+        const scoreFields = [
+            { key: 'science_first_score', label: '科學先決', max: 4 },
+            { key: 'hook_appeal_score', label: 'Hook 吸引力', max: 3 },
+            { key: 'format_score', label: '格式要求', max: 3 }
+        ];
+
+        scoresEl.innerHTML = scoreFields.map(f => {
+            let val = evaluation[f.key];
+            if (val === undefined) val = 0;
+            const normalizedScore = (val / f.max) * 10;
+            const color = getScoreColor(normalizedScore);
+            return `<div class="breakdown-item">
+                        <span class="breakdown-label">${f.label}</span>
+                        <span class="breakdown-score" style="color:${color}">${val}/${f.max}</span>
+                    </div>`;
+        }).join('');
+
+        commentEl.innerHTML = (evaluation.comment || '無評語').replace(/\n/g, '<br>');
     }
 
     // ─── Data Loading (Paginated) ───
@@ -593,6 +635,10 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.hook-quote').forEach((q, i) => {
             q.classList.toggle('hidden', i !== 0);
         });
+
+        if (typeof renderHookEvaluation === 'function') {
+            renderHookEvaluation(0);
+        }
 
         // Critic Score
         const score = data.critic_score || 0;
@@ -1157,6 +1203,11 @@ document.addEventListener('DOMContentLoaded', () => {
     initTabs();
     initHookTabs();
     initSlotClicks();
+    initInfiniteScroll();
+    loadCachedData();
+
+});
+
     initInfiniteScroll();
     loadCachedData();
 
