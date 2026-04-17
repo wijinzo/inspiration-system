@@ -365,5 +365,58 @@ def get_meme_context_by_url(url: str) -> str:
         return f"梗來源: {row[0]}\n解釋: {row[1]}"
     return ""
 
+# ─── Data Fetching by URL (For precise locking) ───
+
+def get_science_by_url(url: str):
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM science_articles WHERE url = ?", (url,))
+    row = c.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def get_social_by_url(url: str):
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute('''
+        SELECT s.*, a.anime_name, a.meme_content, a.related_topics_json
+        FROM social_items s
+        LEFT JOIN anime_memes a ON a.id = (
+            SELECT MAX(a2.id) FROM anime_memes a2 WHERE a2.social_item_id = s.id
+        )
+        WHERE s.url = ?
+    ''', (url,))
+    row = c.fetchone()
+    conn.close()
+    
+    if row:
+        d = dict(row)
+        d["matched_keywords"] = json.loads(d["matched_keywords"]) if d["matched_keywords"] else []
+        d["is_short"] = bool(d["is_short"])
+        if d.get("anime_name"):
+            related_topics = []
+            try:
+                related_topics = json.loads(d.get("related_topics_json", "[]") or "[]")
+            except:
+                pass
+            d["anime_meme"] = {
+                "anime": d["anime_name"],
+                "meme": d["meme_content"],
+                "related_topics": related_topics
+            }
+        return d
+    return None
+
+def get_trend_by_url(url: str):
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM trend_items WHERE url = ?", (url,))
+    row = c.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
 # 建立表格
 init_db()

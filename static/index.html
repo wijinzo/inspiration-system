@@ -138,14 +138,16 @@
                 <div id="resultContent" class="result-area hidden">
 
                     <div class="science-core-box">
-                        <div class="science-core-label">
-                            <i class="fa-solid fa-flask-vial"></i> 科普核心
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                            <div class="science-core-label" style="margin-bottom: 0;">
+                                <i class="fa-solid fa-flask-vial"></i> 科普核心
+                            </div>
+                            <div id="mechanismTag" class="mechanism-tag science-mechanism" style="margin-top: 0; display: none;">
+                                <i class="fa-solid fa-atom"></i>
+                                <span id="mechanismText"></span>
+                            </div>
                         </div>
                         <p id="scienceCoreText" class="science-core-text"></p>
-                        <div id="mechanismTag" class="mechanism-tag science-mechanism">
-                            <i class="fa-solid fa-atom"></i>
-                            <span id="mechanismText"></span>
-                        </div>
                     </div>
 
                     <div class="hook-section glass-panel">
@@ -332,11 +334,6 @@
                 </button>
             </div>
         </div>
-    </div>
-    <script src="/static/script.js?v=3.5"></script>
-</body>
-
-</html>
     </div>
     <script src="/static/script.js?v=3.5"></script>
 </body>

@@ -621,6 +621,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // Science Core
         scienceCoreText.textContent = data.science_core || '';
         mechanismText.textContent = data.mechanism || '';
+        if (data.mechanism) {
+            document.getElementById('mechanismTag').style.display = 'inline-flex';
+        } else {
+            document.getElementById('mechanismTag').style.display = 'none';
+        }
 
         // Hook Tabs
         const hooks = data.hooks || [data.hook_humor || '', data.hook_anime || '', data.hook_mystery || ''];
@@ -1203,11 +1208,6 @@ document.addEventListener('DOMContentLoaded', () => {
     initTabs();
     initHookTabs();
     initSlotClicks();
-    initInfiniteScroll();
-    loadCachedData();
-
-});
-
     initInfiniteScroll();
     loadCachedData();
 
