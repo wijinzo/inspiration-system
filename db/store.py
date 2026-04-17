@@ -347,5 +347,23 @@ def fetch_generation_history(limit=50):
     conn.close()
     return {"history": [dict(r) for r in rows]}
 
+def get_meme_context_by_url(url: str) -> str:
+    """根據 social URL 取得最新的動漫梗文字"""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('''
+        SELECT a.anime_name, a.meme_content
+        FROM social_items s
+        JOIN anime_memes a ON s.id = a.social_item_id
+        WHERE s.url = ?
+        ORDER BY a.id DESC LIMIT 1
+    ''', (url,))
+    row = c.fetchone()
+    conn.close()
+    
+    if row:
+        return f"梗來源: {row[0]}\n解釋: {row[1]}"
+    return ""
+
 # 建立表格
 init_db()

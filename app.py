@@ -1,7 +1,15 @@
 import os
 import asyncio
+import sys
 from datetime import datetime
 from fastapi import FastAPI, HTTPException
+
+if sys.stdout.encoding.lower() != 'utf-8':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except AttributeError:
+        # Fallback for older python or restricted environments
+        pass
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -11,7 +19,12 @@ from typing import Optional, Dict
 from crawlers.trend_crawler import run_trend_pipeline
 from crawlers.science_crawler import run_science_pipeline
 from crawlers.social_crawler import run_social_pipeline
+from crawlers.article_scraper import scrape_sciencedaily_article
 from engine.pipeline import run_v3_pipeline
+from engine.script_generator import run_dual_agent_script_generation
+import io
+from docx import Document
+from fastapi.responses import StreamingResponse
 from db import store
 
 app = FastAPI(title="雙軌科普腳本自動化引擎 V3", version="3.0.0")
@@ -117,6 +130,84 @@ async def generate_script(req: GenerateRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"引擎內部錯誤：{str(e)}")
 
+
+class BuildScriptRequest(BaseModel):
+    science_url: str
+    social_url: Optional[str] = ""
+    hook_text: str
+
+@app.post("/api/build_script")
+async def build_script(req: BuildScriptRequest):
+    """
+    雙大腦生腳本流程：拉全文 -> 提取迷因 -> Agent 1 拆解加比喻 -> Agent 2 生成泛科學腳本
+    """
+    try:
+        # 1. 抓取全文
+        scrape_res = scrape_sciencedaily_article(req.science_url)
+        if not scrape_res["success"]:
+            raise HTTPException(status_code=400, detail=f"科學原稿爬取失敗: {scrape_res['error']}")
+        
+        science_text = scrape_res["text"]
+        
+        # 2. 獲取迷因 Context
+        meme_context = ""
+        if req.social_url:
+            meme_context = store.get_meme_context_by_url(req.social_url)
+            
+        # 3. 獲取腳本範本 (Style Reference)
+        template_text = ""
+        template_path = os.path.join(os.path.dirname(__file__), "腳本範本.md")
+        if os.path.exists(template_path):
+            with open(template_path, "r", encoding="utf-8") as f:
+                template_text = f.read()
+                
+        # 4. 觸發雙 Agent 大腦
+        script_markdown = run_dual_agent_script_generation(
+            science_text=science_text,
+            meme_context=meme_context,
+            hook_text=req.hook_text,
+            template_text=template_text
+        )
+        
+        return {"status": "success", "script": script_markdown}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+class ExportDocxRequest(BaseModel):
+    markdown_text: str
+
+@app.post("/api/export_docx")
+async def export_docx(req: ExportDocxRequest):
+    """將生成的 Markdown 轉換為 DOCX 供下載"""
+    try:
+        doc = Document()
+        doc.add_heading('泛科學風格 - 自動生成腳本', 0)
+        
+        # 簡易的逐行解析 (簡單切割與加粗)
+        for line in req.markdown_text.split('\n'):
+            line = line.strip()
+            if not line:
+                continue
+            if line.startswith('#'):
+                level = line.count('#')
+                text = line.replace('#', '').strip()
+                doc.add_heading(text, level=min(level, 9))
+            else:
+                doc.add_paragraph(line)
+                
+        # 儲存到 BytesIO 並回傳
+        file_stream = io.BytesIO()
+        doc.save(file_stream)
+        file_stream.seek(0)
+        
+        return StreamingResponse(
+            file_stream, 
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": "attachment; filename=script_generated.docx"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ─── Save API (儲存至資料庫) ───
 
