@@ -163,6 +163,16 @@
                         <blockquote id="hookTab0" class="hook-quote hook-quote--active"></blockquote>
                         <blockquote id="hookTab1" class="hook-quote hidden"></blockquote>
                         <blockquote id="hookTab2" class="hook-quote hidden"></blockquote>
+                        
+                        <!-- Individual Hook Evaluation -->
+                        <div id="hookEvalContainer" class="hook-eval-container hidden" style="margin-top:1rem; padding:1rem; background:rgba(255,255,255,0.03); border-radius:0.5rem; border:1px solid rgba(255,255,255,0.1);">
+                            <div style="font-weight:600; margin-bottom:0.75rem; color:var(--text-primary); display:flex; align-items:center; gap:0.5rem;">
+                                <i class="fa-solid fa-chart-pie" style="color:var(--accent-primary)"></i> 單獨評分與評語
+                            </div>
+                            <div id="hookEvalScores" class="breakdown-grid" style="margin-bottom:0.75rem"></div>
+                            <p id="hookEvalComment" style="color:var(--text-secondary); margin:0; font-size:0.9rem; line-height:1.5;"></p>
+                        </div>
+
                         <div class="hook-actions">
                             <button id="copyHookBtn" class="btn btn-ghost btn-sm">
                                 <i class="fa-solid fa-copy"></i> 複製此角度
@@ -322,6 +332,11 @@
                 </button>
             </div>
         </div>
+    </div>
+    <script src="/static/script.js?v=3.5"></script>
+</body>
+
+</html>
     </div>
     <script src="/static/script.js?v=3.5"></script>
 </body>
