@@ -209,8 +209,9 @@ def _run_critic(llm, generated_json_str: str, core_mechanism: str) -> dict:
 2. Hook 吸引力 (0-3 分)：3 個 Hook 是否分別達到了幽默、迷因、懸疑的效果？每個HOOK有達成加一分
 3. 格式正確性 (0-3 分)：是否有 3 個 Hook？
 
-你必須且只能回傳以下格式的純 JSON（不要加 markdown 標記、不要加任何說明文字）：
-{{"total_score": 10, "breakdown": {{"science_first_score": 4, "hook_appeal_score": 3, "format_score": 3}}, "comment": "評語..."}}"""
+請嚴格且客觀地審查，並根據上述標準給予實際分數（切勿無腦給滿分）。
+你必須且只能回傳以下格式的純 JSON（分數欄位請直接輸出數字，不要加 markdown 標記）：
+{{"total_score": 總分, "breakdown": {{"science_first_score": 科學先決分數, "hook_appeal_score": 吸引力分數, "format_score": 格式分數}}, "comment": "請提供具體且嚴苛的評語，並說明為何得分或扣分"}}"""
     )
     
     response = (prompt | llm).invoke({"generated_json_str": generated_json_str, "core_mechanism": core_mechanism})
