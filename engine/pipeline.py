@@ -71,7 +71,7 @@ def run_v3_pipeline(locked_items: dict = None) -> dict:
         
         # Proposer 生成
         try:
-            current_hook_json = _run_proposer(proposer_llm, context_str, science_item['mechanism'])
+            current_hook_json = _run_proposer(proposer_llm, context_str, science_item['mechanism'], critic_comment)
         except Exception as e:
             print(f"!! Proposer 生成失敗: {e}")
             break
@@ -92,8 +92,8 @@ def run_v3_pipeline(locked_items: dict = None) -> dict:
                 print("   [OK] 成功通過審查標準！")
                 break
             else:
-                print(f"   [FAIL] 分數不足。評論: {critic_result.get('comment', '無')}")
-                # 將 Comment 放入下一輪 (這裡簡化處理，直接重新生成，實際可將 comment 餵回 proposer)
+                print(f"   [FAIL] 分數不足。評論: {critic_comment}")
+                print(f"   => 將把 Critic 意見回饋給下一輪 Proposer 重新生成。")
         except Exception as e:
             print(f"!! Critic 審查失敗: {e}")
             break
@@ -162,17 +162,29 @@ def _build_context_string(science, trend, social) -> str:
         
     return ctx
 
-def _run_proposer(llm, context_str: str, core_mechanism: str) -> str:
-    prompt = PromptTemplate.from_template(
-        """你是 YouTube 百萬科普及動漫解說頻道的主筆。我們現在採用「Science-First, Hook-Last」架構。
+def _run_proposer(llm, context_str: str, core_mechanism: str, critic_feedback: str = "") -> str:
+    prompt_template = """你是一位 YouTube 百萬級科普與動漫解說頻道的主筆。你的核心價值是「硬核科學與娛樂情緒的完美焊死」。你信奉 "Science-First, Hook-Last"，沒有紮實的科學因果，就沒有優質的腦洞。
         
-輸入素材：
-{context_str}
+Input Strategy
+- 原始素材: {context_str}
+- 絕對鎖定核心機制（絕對不能偏題）: {core_mechanism}
 
-核心機制（絕對不能偏題）：{core_mechanism}
+Learning Loop (自我修正機制)
+若下方提供【前次審查意見】，你必須執行以下步驟：
+1. 破敗分析 (Audit)：在思考時，先明確指出前次內容在「替換測試」或「邏輯斷層」上的具體敗點。
+2. 差異化重構 (Pivot)：這一次的生成必須與前次有顯著的邏輯提升，嚴禁重複已被否決的修辭。
 
-任務要求：
-1. 先寫出一段紮實的【科學核心分析】(Science Core) 約 300 字，必須解釋 {core_mechanism} 到底是如何運作的，不能只有空殼。
+"""
+
+    if critic_feedback:
+        safe_feedback = critic_feedback.replace('{', '{{').replace('}', '}}')
+        prompt_template += f"\n【前次審查意見（請必須根據此嚴格意見修正您的內容，找出問題並改進）Learning Loop (自我修正機制)若下方提供【前次審查意見】，你必須執行以下步驟：1. 破敗分析 (Audit)：在思考時，先明確指出前次內容在「替換測試」或「邏輯斷層」上的具體敗點。2. 差異化重構 (Pivot)：這一次的生成必須與前次有顯著的邏輯提升，嚴禁重複已被否決的修辭。】\n{safe_feedback}\n\n"
+
+    prompt_template += """任務要求：
+1. 先寫出【科學核心分析】(Science Core) - 約 300 字
+- 禁止堆砌術語：必須使用「動作」與「結果」來解釋 {core_mechanism}。
+- 因果鏈條：必須清晰交代 A 如何導致 B，B 如何引發現象 C。若將科學術語換成魔法後邏輯依然成立，即為失敗。
+- 可見度：用文字描述出科學運作的「畫面感」。
 2. 基於這套科學邏輯，產出三個對應不同受眾的【Hook 引入視角】（純腦洞及有吸引力的腳本開場口白，約1000字）。
    - Hook 1 (Humor/Daily): 結合時事或生活日常的有趣幽默視角
    - Hook 2 (Anime/Meme): 結合動漫梗或網路迷因的獨特視角
@@ -189,7 +201,8 @@ def _run_proposer(llm, context_str: str, core_mechanism: str) -> str:
     "【獵奇懸疑】Hook 3 的開場白..."
   ]
 }}"""
-    )
+    
+    prompt = PromptTemplate.from_template(prompt_template)
     
     response = (prompt | llm).invoke({"context_str": context_str, "core_mechanism": core_mechanism})
     raw = _extract_text(response.content)
@@ -198,20 +211,37 @@ def _run_proposer(llm, context_str: str, core_mechanism: str) -> str:
 
 def _run_critic(llm, generated_json_str: str, core_mechanism: str) -> dict:
     prompt = PromptTemplate.from_template(
-        """你是 YouTube 科普及內容主編。你要審查 Proposer 撰寫的腳本初稿。
-這是他回傳的內容：
-{generated_json_str}
+        """你是一位極度挑剔的 YouTube 科普頻道總編輯。你的審查邏輯是「先懷疑，後驗證」，專門拆解那些試圖用科學名詞包裝空洞內容的腳本。
+這是他回傳的內容Input Data：
+- 待審查 JSON: {generated_json_str}
+- 科學底層機制: {core_mechanism}
 
-本次的科學底層機制是：{core_mechanism}
+Critical Audit Standards (嚴格執行)
+1. 科學先決 (0-4 分) - 「魔法/科幻替換測試」：
+   - 檢測法：嘗試將腳本中的關鍵術語替換為「量子共振」或「奈米魔法」。
+   - 計分準則：
+     - 0-1 分：如果換掉後邏輯依然通順（代表原稿只是在堆砌名詞，並未解釋具體物理/生物機制）。
+     - 2-3 分：提及了部分機制，但因果關係（Causality）跳躍，觀眾無法理解「為什麼」。
+     - 4 分：科學機制與情節發展有「不可替代的強耦合」，必須具備明確的因果鏈條。
 
-請執行「替換測試 (Substitution Test)」與評分迴圈：
-1. 科學先決 (0-4 分)：Science Core 是否紮實？如果把科學術語換成魔法，文章是否瞬間不合理？如果一樣合理 = 0 分。
-2. Hook 吸引力 (0-3 分)：3 個 Hook 是否分別達到了幽默、迷因、懸疑的效果？每個HOOK有達成加一分
-3. 格式正確性 (0-3 分)：是否有 3 個 Hook？
+2. Hook 吸引力 (0-3 分) - 「三元情緒測試」：
+   - 審查 3 個 Hook 是否分別觸發以下特定神經通路：
+     - 幽默 (Humor)：是否利用了反差或認知失調？
+     - 迷因 (Meme/Relatability)：是否精準切中時下社群情緒？
+     - 懸疑 (Suspense)：是否創造了巨大的「資訊缺口 (Information Gap)」？
+   - 計分準則：每達成一項精準觸發，得 1 分。若只是平鋪直敘，該項不給分。
+
+3. 格式與完整度 (0-3 分)：
+   - 計分準則：具備 3 個獨立且風格互補的 Hook 得 3 分；缺少一個扣 1 分。
+
+Output Requirement
+- 嚴禁給出無意義的高分。
+- 嚴禁輸出 Markdown 代碼塊（如 ```json ）。
+- 必須輸出純 JSON 格式。
 
 請嚴格且客觀地審查，並根據上述標準給予實際分數（切勿無腦給滿分）。
 你必須且只能回傳以下格式的純 JSON（分數欄位請直接輸出數字，不要加 markdown 標記）：
-{{"total_score": 總分, "breakdown": {{"science_first_score": 科學先決分數, "hook_appeal_score": 吸引力分數, "format_score": 格式分數}}, "comment": "請提供具體且嚴苛的評語，並說明為何得分或扣分"}}"""
+{{"total_score": 總分, "breakdown": {{"science_first_score": 科學先決分數, "hook_appeal_score": 吸引力分數, "format_score": 格式分數}}, "comment": "請提供具體且嚴苛的關鍵建議及評語，並說明為何得出更高分並避免扣分"}}"""
     )
     
     response = (prompt | llm).invoke({"generated_json_str": generated_json_str, "core_mechanism": core_mechanism})
