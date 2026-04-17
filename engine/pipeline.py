@@ -98,6 +98,16 @@ def run_v3_pipeline(locked_items: dict = None) -> dict:
             print(f"!! Critic 審查失敗: {e}")
             break
 
+    # --- Debate 結束，執行個別 Hook 詳細評分 ---
+    hook_evaluations = []
+    if current_hook_json:
+        print("\n>> 執行個別 Hook 詳細審查 (供前端分別展示)...")
+        try:
+            hook_evaluations = _run_hook_detail_evaluation(critic_llm, current_hook_json, science_item['mechanism'])
+            print("   [OK] 個別 Hook 審查完成！")
+        except Exception as e:
+            print(f"!! 個別 Hook 審查失敗: {e}")
+
     # 解析 최종 JSON
     hooks = ["生成失敗", "生成失敗", "生成失敗"]
     science_core_text = "無核心分析"
@@ -116,6 +126,7 @@ def run_v3_pipeline(locked_items: dict = None) -> dict:
         "critic_score": current_score,
         "critic_breakdown": breakdown,
         "critic_comment": critic_comment,
+        "hook_evaluations": hook_evaluations,
         "science_core": science_core_text,
         "reasoning": reasoning_text,
         "hooks": hooks,
@@ -239,7 +250,7 @@ Output Requirement
 - 嚴禁輸出 Markdown 代碼塊（如 ```json ）。
 - 必須輸出純 JSON 格式。
 
-請嚴格且客觀地審查，並根據上述標準給予實際分數（切勿無腦給滿分）。
+請嚴格且客觀地審查，並根據上述標準給予實際分數。
 你必須且只能回傳以下格式的純 JSON（分數欄位請直接輸出數字，不要加 markdown 標記）：
 {{"total_score": 總分, "breakdown": {{"science_first_score": 科學先決分數, "hook_appeal_score": 吸引力分數, "format_score": 格式分數}}, "comment": "請提供具體且嚴苛的關鍵建議及評語，並說明為何得出更高分並避免扣分"}}"""
     )
@@ -255,6 +266,67 @@ Output Requirement
         print(f"   ⚠️ Critic JSON 解析失敗: {e}")
         print(f"   Raw: {content[:200]}")
     return {"total_score": 0, "breakdown": {}, "comment": "Critic 輸出格式錯誤"}
+
+
+def _run_hook_detail_evaluation(llm, generated_json_str: str, core_mechanism: str) -> list:
+    prompt = PromptTemplate.from_template(
+        """你是 YouTube 百萬科普及動漫解說頻道總編輯。
+你的任務是針對剛定稿的三個完全不同風格的 Hook 開場白，逐一進行各自的獨立審查。請拒絕給予罐頭回覆，必須根據這三個文案的差異，給出截然不同的評分與犀利點評！
+
+Input Data：
+- 待審查 JSON: {generated_json_str}
+- 科學底層機制: {core_mechanism}
+
+（請注意待審查 JSON 中的 `hooks` 陣列，順序固定為：第 1 個是「生活幽默」，第 2 個是「動漫迷因」，第 3 個是「獵奇懸疑」。請針對這三段文案的實際內容分別打分。）
+
+審查標準（請嚴格抓出每個文案的獨特優缺點）：
+1. 科學先決 (0-4 分)：這個開場白是否把重點放在營造氣氛，卻忘記提及科學因果？
+2. Hook 吸引力 (0-3 分)：是否有成功做到該文案「專屬」的目的？（幽默要有笑點、迷因要切中時事/動漫、懸疑要有足夠的神祕感）
+3. 格式與完整度 (0-3 分)：作為短影音開場是否夠吸睛不拖泥帶水？
+
+你必須回傳以下純 JSON 格式（嚴禁包含 Markdown 標籤如 ```json，所有分數請直接填寫整數，每段評語絕對不能重複）：
+{{
+  "evaluations": [
+    {{
+      "type": "Humor",
+      "title": "幽默 (Humor)",
+      "science_first_score": 0,
+      "hook_appeal_score": 0,
+      "format_score": 0,
+      "comment": "針對幽默文案的犀利點評..."
+    }},
+    {{
+      "type": "Meme",
+      "title": "迷因 (Meme/Relatability)",
+      "science_first_score": 0,
+      "hook_appeal_score": 0,
+      "format_score": 0,
+      "comment": "針對迷因文案的犀利點評..."
+    }},
+    {{
+      "type": "Suspense",
+      "title": "懸疑 (Suspense)",
+      "science_first_score": 0,
+      "hook_appeal_score": 0,
+      "format_score": 0,
+      "comment": "針對懸疑文案的犀利點評..."
+    }}
+  ]
+}}"""
+    )
+    
+    response = (prompt | llm).invoke({"generated_json_str": generated_json_str, "core_mechanism": core_mechanism})
+    raw = _extract_text(response.content)
+    content = _parse_json(raw)
+    try:
+        result = json.loads(content)
+        if "evaluations" in result:
+            return result["evaluations"]
+    except Exception as e:
+        print(f"   ⚠️ 個別評估 JSON 解析失敗: {e}")
+        print(f"   Raw: {content[:200]}")
+        
+    return []
 
 
 def _extract_text(content) -> str:
