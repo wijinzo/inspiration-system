@@ -50,7 +50,7 @@ def run_v3_pipeline(locked_items: dict = None) -> dict:
     if not science_item:
         return {"error": "缺乏科學文獻作為核心，V3 引擎無法執行。"}
         
-    print(f"📌 [Science Core]: {science_item['title']} (Credibility: {science_item.get('credibility_score', 1)})")
+    print(f"* [Science Core]: {science_item['title']} (Credibility: {science_item.get('credibility_score', 1)})")
     
     # 2. 準備給 LLM 的 Context
     context_str = _build_context_string(science_item, trend_item, social_item)
@@ -67,13 +67,13 @@ def run_v3_pipeline(locked_items: dict = None) -> dict:
     
     while attempts < MAX_DEBATE_RETRIES:
         attempts += 1
-        print(f"\n🌀 [Debate] 第 {attempts} 回合...")
+        print(f"\n>> [Debate] 第 {attempts} 回合...")
         
         # Proposer 生成
         try:
             current_hook_json = _run_proposer(proposer_llm, context_str, science_item['mechanism'])
         except Exception as e:
-            print(f"⚠️ Proposer 生成失敗: {e}")
+            print(f"!! Proposer 生成失敗: {e}")
             break
             
         # Critic 審查
@@ -89,13 +89,13 @@ def run_v3_pipeline(locked_items: dict = None) -> dict:
             print(f"      - Format: {breakdown.get('format_score', 0)}/3")
             
             if current_score >= CRITIC_THRESHOLD:
-                print("   ✅ 成功通過審查標準！")
+                print("   [OK] 成功通過審查標準！")
                 break
             else:
-                print(f"   ❌ 分數不足。評論: {critic_result.get('comment', '無')}")
+                print(f"   [FAIL] 分數不足。評論: {critic_result.get('comment', '無')}")
                 # 將 Comment 放入下一輪 (這裡簡化處理，直接重新生成，實際可將 comment 餵回 proposer)
         except Exception as e:
-            print(f"⚠️ Critic 審查失敗: {e}")
+            print(f"!! Critic 審查失敗: {e}")
             break
 
     # 解析 최종 JSON

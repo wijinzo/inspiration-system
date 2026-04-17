@@ -27,6 +27,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const retryFromError = document.getElementById('retryFromError');
     const saveBtn = document.getElementById('saveBtn');
     const copyHookBtn = document.getElementById('copyHookBtn');
+    const generateScriptBtn = document.getElementById('generateScriptBtn');
+    
+    const scriptModal = document.getElementById('scriptModal');
+    const closeScriptModalBtn = document.getElementById('closeScriptModalBtn');
+    const scriptContentArea = document.getElementById('scriptContentArea');
+    const exportWordBtn = document.getElementById('exportWordBtn');
 
     const resultEmpty = document.getElementById('resultEmpty');
     const resultLoader = document.getElementById('resultLoader');
@@ -808,6 +814,100 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     saveBtn.addEventListener('click', doSave);
     if (copyHookBtn) copyHookBtn.addEventListener('click', copyCurrentHook);
+    if (generateScriptBtn) generateScriptBtn.addEventListener('click', doGenerateScript);
+    
+    if (closeScriptModalBtn) {
+        closeScriptModalBtn.addEventListener('click', () => scriptModal.classList.add('hidden'));
+    }
+    if (exportWordBtn) exportWordBtn.addEventListener('click', doExportWord);
+
+    let generatedMarkdownCache = "";
+
+    async function doGenerateScript() {
+        if (!selectedState.science) {
+            alert("請先選擇一筆科學文獻！");
+            return;
+        }
+
+        const activeQuote = document.querySelector('.hook-quote:not(.hidden)');
+        const hookText = activeQuote ? activeQuote.textContent.trim() : '';
+        if (!hookText) {
+            alert("目前沒有可以使用的 Hook，請先生成！");
+            return;
+        }
+
+        showLoader('正在抓取全文與融合比喻 (這需要約 30 秒，請耐心等候)...');
+
+        try {
+            const payload = {
+                science_url: selectedState.science.id,
+                social_url: selectedState.spice && selectedState.spice.type === 'social' ? selectedState.spice.id : null,
+                hook_text: hookText
+            };
+
+            const res = await fetch('/api/build_script', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.detail || '腳本生成失敗');
+            }
+
+            const data = await res.json();
+            
+            generatedMarkdownCache = data.script;
+
+            if (typeof marked !== 'undefined') {
+                scriptContentArea.innerHTML = marked.parse(generatedMarkdownCache);
+            } else {
+                scriptContentArea.innerHTML = `<pre style="white-space: pre-wrap; font-family: inherit;">${generatedMarkdownCache}</pre>`;
+            }
+
+            resultContent.classList.remove('hidden');
+            scriptModal.classList.remove('hidden');
+
+        } catch (err) {
+            showError("腳本生成發生錯誤：" + err.message);
+        } finally {
+            hideLoader();
+        }
+    }
+
+    async function doExportWord() {
+        if (!generatedMarkdownCache) return;
+
+        exportWordBtn.disabled = true;
+        exportWordBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 處理中...';
+
+        try {
+            const res = await fetch('/api/export_docx', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ markdown_text: generatedMarkdownCache })
+            });
+
+            if (!res.ok) throw new Error("匯出 Word 失敗");
+
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "Pansci_Script_Generated.docx";
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+        } catch (err) {
+            alert(err.message);
+        } finally {
+            exportWordBtn.disabled = false;
+            exportWordBtn.innerHTML = '<i class="fa-solid fa-file-word"></i> 匯出至 Word (.docx)';
+        }
+    }
 
     // History drawer
     if (historyBtn) {

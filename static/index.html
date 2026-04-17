@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="/static/style.css?v=3.5">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 
 <body>
@@ -166,6 +167,9 @@
                             <button id="copyHookBtn" class="btn btn-ghost btn-sm">
                                 <i class="fa-solid fa-copy"></i> 複製此角度
                             </button>
+                            <button id="generateScriptBtn" class="btn btn-primary btn-sm btn-glow">
+                                <i class="fa-solid fa-pen-nib"></i> 使用此 Hook 產生腳本
+                            </button>
                         </div>
                     </div>
 
@@ -297,6 +301,27 @@
     <div id="imageModal" class="image-modal hidden">
         <span class="image-modal-close" onclick="closeImageModal()">&times;</span>
         <img class="image-modal-content" id="modalImage">
+    </div>
+
+    <!-- Script Preview Modal -->
+    <div id="scriptModal" class="script-modal hidden">
+        <div class="script-modal__backdrop"></div>
+        <div class="script-modal__panel glass-panel">
+            <div class="script-modal__header">
+                <h2><i class="fa-solid fa-file-lines"></i> 泛科學腳本預覽</h2>
+                <div class="script-modal__tools">
+                    <button class="close-btn" id="closeScriptModalBtn"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            </div>
+            <div class="script-modal__content" id="scriptContentArea">
+                <!-- Markdown parsed here -->
+            </div>
+            <div class="script-modal__footer">
+                <button id="exportWordBtn" class="btn btn-primary">
+                    <i class="fa-solid fa-file-word"></i> 匯出至 Word (.docx)
+                </button>
+            </div>
+        </div>
     </div>
     <script src="/static/script.js?v=3.5"></script>
 </body>
