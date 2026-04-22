@@ -258,6 +258,33 @@ def save_history(payload: dict):
     conn.commit()
     conn.close()
 
+# ─── Data Deletion ───
+
+def delete_item(table_type: str, url: str) -> bool:
+    """依 URL 刪除單筆資料，回傳是否成功刪除"""
+    table_map = {
+        "science": "science_articles",
+        "social":  "social_items",
+        "trend":   "trend_items",
+    }
+    table = table_map.get(table_type)
+    if not table:
+        return False
+    conn = get_connection()
+    c = conn.cursor()
+    # 若為 social，同時清除關聯的 anime_memes
+    if table_type == "social":
+        c.execute("SELECT id FROM social_items WHERE url=?", (url,))
+        row = c.fetchone()
+        if row:
+            c.execute("DELETE FROM anime_memes WHERE social_item_id=?", (row[0],))
+    c.execute(f"DELETE FROM {table} WHERE url=?", (url,))
+    affected = c.rowcount
+    conn.commit()
+    conn.close()
+    return affected > 0
+
+
 # ─── Data Fetching (Frontend API) ───
 
 def fetch_latest_science(limit=15, offset=0):
