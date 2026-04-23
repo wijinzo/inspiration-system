@@ -76,39 +76,42 @@ def run_v3_pipeline(locked_items: dict = None) -> dict:
             print(f"!! Proposer 生成失敗: {e}")
             break
             
-        # Critic 審查
+        # Critic 審查 (單一 Agent 完成細節與整體審查)
         try:
             critic_result = _run_critic(critic_llm, current_hook_json, science_item['mechanism'])
-            current_score = critic_result.get("total_score", 0)
-            breakdown = critic_result.get("breakdown", {})
-            critic_comment = critic_result.get("comment", "")
             
-            print(f"   => Critic 評分: {current_score}/10")
+            evals = critic_result.get("evaluations", [])
+            
+            # 找出三個 Hook 中得分最高的一個作為本次生成的代表分數
+            best_score = 0
+            best_breakdown = {}
+            for ev in evals:
+                score = ev.get("science_first_score", 0) + ev.get("hook_appeal_score", 0) + ev.get("format_score", 0)
+                if score >= best_score:
+                    best_score = score
+                    best_breakdown = ev
+                    
+            current_score = best_score
+            breakdown = best_breakdown
+            critic_comment = critic_result.get("critic_comment", "無評論")
+            hook_evaluations = evals
+            
+            print(f"   => 最高 Hook 評分: {current_score}/10")
             print(f"      - Science-First: {breakdown.get('science_first_score', 0)}/4")
             print(f"      - Hook Appeal: {breakdown.get('hook_appeal_score', 0)}/3")
             print(f"      - Format: {breakdown.get('format_score', 0)}/3")
             
             if current_score >= CRITIC_THRESHOLD:
-                print("   [OK] 成功通過審查標準！")
+                print("   [OK] 成功通過審查標準！(至少一組 Hook 達標)")
                 break
             else:
-                print(f"   [FAIL] 分數不足。評論: {critic_comment}")
+                print(f"   [FAIL] 所有 Hook 均未達標。總評: {critic_comment}")
                 print(f"   => 將把 Critic 意見回饋給下一輪 Proposer 重新生成。")
         except Exception as e:
             print(f"!! Critic 審查失敗: {e}")
             break
 
-    # --- Debate 結束，執行個別 Hook 詳細評分 ---
-    hook_evaluations = []
-    if current_hook_json:
-        print("\n>> 執行個別 Hook 詳細審查 (供前端分別展示)...")
-        try:
-            hook_evaluations = _run_hook_detail_evaluation(critic_llm, current_hook_json, science_item['mechanism'])
-            print("   [OK] 個別 Hook 審查完成！")
-        except Exception as e:
-            print(f"!! 個別 Hook 審查失敗: {e}")
-
-    # 解析 최종 JSON
+    # 解析 JSON
     hooks = ["生成失敗", "生成失敗", "生成失敗"]
     science_core_text = "無核心分析"
     reasoning_text = "無企劃屬性邏輯"
@@ -223,68 +226,24 @@ Learning Loop (自我修正機制)
 def _run_critic(llm, generated_json_str: str, core_mechanism: str) -> dict:
     prompt = PromptTemplate.from_template(
         """你是一位極度挑剔的 YouTube 科普頻道總編輯。你的審查邏輯是「先懷疑，後驗證」，專門拆解那些試圖用科學名詞包裝空洞內容的腳本。
-這是他回傳的內容Input Data：
+這是他回傳的三個不同視角（幽默/迷因/懸疑）的 Hook 開場白：
 - 待審查 JSON: {generated_json_str}
 - 科學底層機制: {core_mechanism}
 
-Critical Audit Standards (嚴格執行)
+Critical Audit Standards (對三個 Hook 單獨進行評分)：
 1. 科學先決 (0-4 分) - 「魔法/科幻替換測試」：
-   - 檢測法：嘗試將腳本中的關鍵術語替換為「量子共振」或「奈米魔法」。
-   - 計分準則：
-     - 0-1 分：如果換掉後邏輯依然通順（代表原稿只是在堆砌名詞，並未解釋具體物理/生物機制）。
-     - 2-3 分：提及了部分機制，但因果關係（Causality）跳躍，觀眾無法理解「為什麼」。
-     - 4 分：科學機制與情節發展有「不可替代的強耦合」，必須具備明確的因果鏈條。
-
-2. Hook 吸引力 (0-3 分) - 「三元情緒測試」：
-   - 審查 3 個 Hook 是否分別觸發以下特定神經通路：
-     - 幽默 (Humor)：是否利用了反差或認知失調？
-     - 迷因 (Meme/Relatability)：是否精準切中時下社群情緒？
-     - 懸疑 (Suspense)：是否創造了巨大的「資訊缺口 (Information Gap)」？
-   - 計分準則：每達成一項精準觸發，得 1 分。若只是平鋪直敘，該項不給分。
-
+   - 如果換掉科學名詞後邏輯依然通順（代表只是在堆砌名詞，未解釋機制），給 0-1 分。
+   - 提及了部分機制，但因果關係跳躍，觀眾無法理解「為什麼」，給 2-3 分。
+   - 科學機制與情節發展有「不可替代的強耦合」，具備明確且具視覺感的因果鏈條，給 4 分。
+2. Hook 吸引力 (0-3 分) - 「情緒與痛點」：
+   - 是否精準觸發各自該有的情緒（幽默、迷因、懸疑）？有強烈反差感給 2-3 分，平鋪直敘 0-1 分。
 3. 格式與完整度 (0-3 分)：
-   - 計分準則：具備 3 個獨立且風格互補的 Hook 得 3 分；缺少一個扣 1 分。
+   - 作為短影音開場是否足夠吸睛且不拖泥帶水？
 
 Output Requirement
-- 嚴禁給出無意義的高分。
-- 嚴禁輸出 Markdown 代碼塊（如 ```json ）。
-- 必須輸出純 JSON 格式。
-
-請嚴格且客觀地審查，並根據上述標準給予實際分數。
-你必須且只能回傳以下格式的純 JSON（分數欄位請直接輸出數字，不要加 markdown 標記）：
-{{"total_score": 總分, "breakdown": {{"science_first_score": 科學先決分數, "hook_appeal_score": 吸引力分數, "format_score": 格式分數}}, "comment": "請提供具體且嚴苛的關鍵建議及評語，並說明為何得出更高分並避免扣分"}}"""
-    )
-    
-    response = (prompt | llm).invoke({"generated_json_str": generated_json_str, "core_mechanism": core_mechanism})
-    raw = _extract_text(response.content)
-    content = _parse_json(raw)
-    try:
-        result = json.loads(content)
-        if isinstance(result, dict) and "total_score" in result:
-            return result
-    except Exception as e:
-        print(f"   ⚠️ Critic JSON 解析失敗: {e}")
-        print(f"   Raw: {content[:200]}")
-    return {"total_score": 0, "breakdown": {}, "comment": "Critic 輸出格式錯誤"}
-
-
-def _run_hook_detail_evaluation(llm, generated_json_str: str, core_mechanism: str) -> list:
-    prompt = PromptTemplate.from_template(
-        """你是 YouTube 百萬科普及動漫解說頻道總編輯。
-你的任務是針對剛定稿的三個完全不同風格的 Hook 開場白，逐一進行各自的獨立審查。請拒絕給予罐頭回覆，必須根據這三個文案的差異，給出截然不同的評分與犀利點評！
-
-Input Data：
-- 待審查 JSON: {generated_json_str}
-- 科學底層機制: {core_mechanism}
-
-（請注意待審查 JSON 中的 `hooks` 陣列，順序固定為：第 1 個是「生活幽默」，第 2 個是「動漫迷因」，第 3 個是「獵奇懸疑」。請針對這三段文案的實際內容分別打分。）
-
-審查標準（請嚴格抓出每個文案的獨特優缺點）：
-1. 科學先決 (0-4 分)：這個開場白是否把重點放在營造氣氛，卻忘記提及科學因果？
-2. Hook 吸引力 (0-3 分)：是否有成功做到該文案「專屬」的目的？（幽默要有笑點、迷因要切中時事/動漫、懸疑要有足夠的神祕感）
-3. 格式與完整度 (0-3 分)：作為短影音開場是否夠吸睛不拖泥帶水？
-
-你必須回傳以下純 JSON 格式（嚴禁包含 Markdown 標籤如 ```json，所有分數請直接填寫整數，每段評語絕對不能重複）：
+- 必須且只能輸出純 JSON 格式，嚴禁包含 ```json 標籤。
+- 分數屬性請填寫整數。
+請回傳以下結構：
 {{
   "evaluations": [
     {{
@@ -293,7 +252,7 @@ Input Data：
       "science_first_score": 0,
       "hook_appeal_score": 0,
       "format_score": 0,
-      "comment": "針對幽默文案的犀利點評..."
+      "comment": "對【生活幽默】Hook 的犀利點評及修改建議"
     }},
     {{
       "type": "Meme",
@@ -301,7 +260,7 @@ Input Data：
       "science_first_score": 0,
       "hook_appeal_score": 0,
       "format_score": 0,
-      "comment": "針對迷因文案的犀利點評..."
+      "comment": "對【動漫迷因】Hook 的犀利點評及修改建議"
     }},
     {{
       "type": "Suspense",
@@ -309,9 +268,10 @@ Input Data：
       "science_first_score": 0,
       "hook_appeal_score": 0,
       "format_score": 0,
-      "comment": "針對懸疑文案的犀利點評..."
+      "comment": "對【獵奇懸疑】Hook 的犀利點評及修改建議"
     }}
-  ]
+  ],
+  "critic_comment": "總編給作者的一句話總評（指出最嚴重的致命傷或誇獎最大的亮點）"
 }}"""
     )
     
@@ -320,13 +280,12 @@ Input Data：
     content = _parse_json(raw)
     try:
         result = json.loads(content)
-        if "evaluations" in result:
-            return result["evaluations"]
+        if isinstance(result, dict) and "evaluations" in result:
+            return result
     except Exception as e:
-        print(f"   ⚠️ 個別評估 JSON 解析失敗: {e}")
+        print(f"   ⚠️ Critic JSON 解析失敗: {e}")
         print(f"   Raw: {content[:200]}")
-        
-    return []
+    return {"evaluations": [], "critic_comment": "Critic 輸出格式錯誤"}
 
 
 def _extract_text(content) -> str:
