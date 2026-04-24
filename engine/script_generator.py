@@ -5,7 +5,7 @@ from langchain_core.prompts import PromptTemplate
 
 from config import MODEL_NAME, TEMPERATURE_CREATIVE, TEMPERATURE_FILTER
 
-def run_dual_agent_script_generation(science_text: str, meme_context: str, hook_text: str, template_text: str) -> str:
+def run_dual_agent_script_generation(science_text: str, meme_context: str, hook_text: str, template_text: str, article_title: str = "", article_url: str = "") -> str:
     """
     執行雙大腦腳本生成工作流
     Agent 1 (The Analyst): 提取6大段落並產出比喻
@@ -68,12 +68,24 @@ def run_dual_agent_script_generation(science_text: str, meme_context: str, hook_
         print("[Warning] Agent 1 輸出的 JSON 解析失敗，將以純文字傳遞。")
         analyst_data = {"raw_content": raw_json_str}
 
+    # 顯示 Agent 1 的產出在終端機
+    print("\n" + "="*50)
+    print("🤖 [Agent 1 輸出結果]")
+    print(json.dumps(analyst_data, ensure_ascii=False, indent=2))
+    print("="*50 + "\n")
+
     # -----------------------------------------------------
     # Agent 2 (The Script Writer)
     # -----------------------------------------------------
     llm_writer = ChatGoogleGenerativeAI(model=MODEL_NAME, temperature=TEMPERATURE_CREATIVE)
     writer_prompt = PromptTemplate.from_template("""
 你現在是台灣頂尖的知識型 YouTuber (如泛科學) 的首席腳本作家。你需要將靜態資訊轉化為動態「腳本流」。不要只是將六大區塊生硬地拼湊在一起。
+
+[原文章標題]: 
+{article_title}
+
+[原文章連結]: 
+{article_url}
 
 [Hook 開場]: 
 {hook_text}
@@ -88,10 +100,12 @@ def run_dual_agent_script_generation(science_text: str, meme_context: str, hook_
 【核心任務：將靜態資訊轉化為動態「腳本流」】
 請遵循以下指導原則進行創作：
 
-1. 嚴格學習範本語氣：
+1. 嚴格學習範本語氣與標題設計：
+   * 在腳本最開頭，以 `#` 標記產生一個「創意標題」。請參考[原文章標題]與 `腳本範本.md` 的標題風格，將其修改為通俗易懂、有趣且吸引人的標題。
    * 模仿範本中生動的動詞（如「猛烈降溫」、「破壞力強卻能精準控血」）。
-   * 適時使用對話感、括號內心 OS（例如：蛤？沒看過啊？算了。）。
+   * 適時使用對話感、括號內心 OS(例如:蛤?沒看過啊?算了。)。
    * 確保用詞符合台灣 YouTuber 的口語習慣，避免過於書面化。
+   * 全文字數請盡量控制在【1300字上下】。
 
 2. 實作「懸念式」段落銜接：
    * 每個區塊結尾與下一個區塊開始時，必須主動拋出問題或有趣的議題點，引誘觀眾繼續看下去。
@@ -102,20 +116,25 @@ def run_dual_agent_script_generation(science_text: str, meme_context: str, hook_
    * 如果大腦 1 提供的比喻過於生硬，你有權利根據 `腳本範本.md` 的風格進行微調，使其更符合動態腳本流的節奏。
 
 4. 科學細節的精準嵌入：
-   * 在講述「研究方法」或「研究結果」時，適時帶入原始文章中的具體數據或專有名詞（如特定指標名稱或單位），並保留描述，在其後面的敘述確保「硬核科學」與「趣味娛樂」的完美平衡。
+   * 在講述「研究方法」或「研究結果」時，適時帶入原始文章中的具體數據或專有名詞（如特定名稱或單位），並保留描述，確保「硬核科學」與「趣味娛樂」的完美平衡。
 
 【腳本結構要求】
+* 標題：基於原文章標題發想的創意 YT 標題。
 * 開頭 (The Hook)：使用傳入的 Hook 抓住觀眾，並迅速帶入「研究背景」。
 * 鋪陳 (The Conflict)：描述目前的「現況或痛點」與「研究核心問題」。
 * 核心 (The Solution)：生動地解說「研究方法」，這是你最需要發揮比喻能力的段落。
 * 高潮 (The Findings)：揭曉「研究結果」，並展現其震撼人心之處。
-* 結尾 (The Future)：談論「未來展望」，並給觀眾一個思考點或行動呼籲（Call to Action）。
+* 結尾與展望 (The Future)：談論「未來展望」。【絕對禁止】產生常見的 YouTube 結尾廢話（例如：將影片分享出去、按讚訂閱、記得開啟小鈴鐺、下次見、掰掰等）。請著重於研究背後的省思。
+* 參考文獻：在腳本的最尾端（不要有其他文字），附上原始文章的引導與連結：
+  > 原始研究與參考文獻：[{article_title}]({article_url})
 
 直接輸出 Markdown 格式的完整腳本。不要用 ```markdown 包著，直接輸出內容。
 """)
     
     print("[Agent 2] 正在編寫動態腳本...")
     writer_response = (writer_prompt | llm_writer).invoke({
+        "article_title": article_title,
+        "article_url": article_url,
         "hook_text": hook_text,
         "analyst_json": json.dumps(analyst_data, ensure_ascii=False, indent=2),
         "template_text": template_text

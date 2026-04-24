@@ -365,5 +365,17 @@ def get_meme_context_by_url(url: str) -> str:
         return f"梗來源: {row[0]}\n解釋: {row[1]}"
     return ""
 
+def get_science_title_by_url(url: str) -> str:
+    """根據 URL 取得已爬取的科學文章標題"""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('SELECT title FROM science_articles WHERE url = ?', (url,))
+    row = c.fetchone()
+    conn.close()
+    
+    if row:
+        return row[0]
+    return ""
+
 # 建立表格
 init_db()

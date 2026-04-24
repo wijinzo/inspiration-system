@@ -148,6 +148,10 @@ async def build_script(req: BuildScriptRequest):
             raise HTTPException(status_code=400, detail=f"科學原稿爬取失敗: {scrape_res['error']}")
         
         science_text = scrape_res["text"]
+        # 從資料庫撈出先前由 science_crawler 存入的正式標題，若無則降級使用當次爬蟲找到的標籤
+        science_title = store.get_science_title_by_url(req.science_url)
+        if not science_title:
+            science_title = scrape_res.get("title", "未命名科學文章")
         
         # 2. 獲取迷因 Context
         meme_context = ""
@@ -166,7 +170,9 @@ async def build_script(req: BuildScriptRequest):
             science_text=science_text,
             meme_context=meme_context,
             hook_text=req.hook_text,
-            template_text=template_text
+            template_text=template_text,
+            article_title=science_title,
+            article_url=req.science_url
         )
         
         return {"status": "success", "script": script_markdown}
