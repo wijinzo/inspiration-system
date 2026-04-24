@@ -258,6 +258,33 @@ def save_history(payload: dict):
     conn.commit()
     conn.close()
 
+# ─── Data Deletion ───
+
+def delete_item(table_type: str, url: str) -> bool:
+    """依 URL 刪除單筆資料，回傳是否成功刪除"""
+    table_map = {
+        "science": "science_articles",
+        "social":  "social_items",
+        "trend":   "trend_items",
+    }
+    table = table_map.get(table_type)
+    if not table:
+        return False
+    conn = get_connection()
+    c = conn.cursor()
+    # 若為 social，同時清除關聯的 anime_memes
+    if table_type == "social":
+        c.execute("SELECT id FROM social_items WHERE url=?", (url,))
+        row = c.fetchone()
+        if row:
+            c.execute("DELETE FROM anime_memes WHERE social_item_id=?", (row[0],))
+    c.execute(f"DELETE FROM {table} WHERE url=?", (url,))
+    affected = c.rowcount
+    conn.commit()
+    conn.close()
+    return affected > 0
+
+
 # ─── Data Fetching (Frontend API) ───
 
 def fetch_latest_science(limit=15, offset=0):
@@ -376,6 +403,59 @@ def get_science_title_by_url(url: str) -> str:
     if row:
         return row[0]
     return ""
+
+# ─── Data Fetching by URL (For precise locking) ───
+
+def get_science_by_url(url: str):
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM science_articles WHERE url = ?", (url,))
+    row = c.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def get_social_by_url(url: str):
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute('''
+        SELECT s.*, a.anime_name, a.meme_content, a.related_topics_json
+        FROM social_items s
+        LEFT JOIN anime_memes a ON a.id = (
+            SELECT MAX(a2.id) FROM anime_memes a2 WHERE a2.social_item_id = s.id
+        )
+        WHERE s.url = ?
+    ''', (url,))
+    row = c.fetchone()
+    conn.close()
+    
+    if row:
+        d = dict(row)
+        d["matched_keywords"] = json.loads(d["matched_keywords"]) if d["matched_keywords"] else []
+        d["is_short"] = bool(d["is_short"])
+        if d.get("anime_name"):
+            related_topics = []
+            try:
+                related_topics = json.loads(d.get("related_topics_json", "[]") or "[]")
+            except:
+                pass
+            d["anime_meme"] = {
+                "anime": d["anime_name"],
+                "meme": d["meme_content"],
+                "related_topics": related_topics
+            }
+        return d
+    return None
+
+def get_trend_by_url(url: str):
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM trend_items WHERE url = ?", (url,))
+    row = c.fetchone()
+    conn.close()
+    return dict(row) if row else None
 
 # 建立表格
 init_db()

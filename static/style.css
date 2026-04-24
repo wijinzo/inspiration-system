@@ -1589,6 +1589,39 @@ details[open] .collapse-icon {
     color: #818cf8;
 }
 
+/* DB Delete Button */
+.db-delete-btn {
+    background: none;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: rgba(239, 68, 68, 0.5);
+    border-radius: 0.4rem;
+    padding: 3px 8px;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    opacity: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.db-table tbody tr:hover .db-delete-btn {
+    opacity: 1;
+}
+.db-delete-btn:hover {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.7);
+    color: #f87171;
+    transform: scale(1.05);
+}
+.db-delete-btn:active {
+    transform: scale(0.95);
+}
+.db-delete-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+}
+
 /* DB Table Scrollbar */
 .db-table-wrapper::-webkit-scrollbar { width: 6px; }
 .db-table-wrapper::-webkit-scrollbar-track { background: transparent; }

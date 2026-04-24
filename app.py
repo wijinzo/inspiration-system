@@ -64,6 +64,19 @@ def get_science(page: int = 1, limit: int = 15):
 def get_history():
     return store.fetch_generation_history()
 
+@app.delete("/api/data/{item_type}")
+def delete_data_item(item_type: str, url: str):
+    """刪除指定類型和 URL 的單筆資料。
+    item_type: science | social | trend
+    url: 要刪除的構圖
+    """
+    if item_type not in ("science", "social", "trend"):
+        raise HTTPException(status_code=400, detail="無效的資料類型")
+    success = store.delete_item(item_type, url)
+    if not success:
+        raise HTTPException(status_code=404, detail="找不到該筆資料")
+    return {"status": "success", "message": "已成功刪除"}
+
 # ─── Crawl API (觸發爬蟲) ───
 
 @app.post("/api/crawl/trends")
@@ -118,6 +131,7 @@ async def generate_script(req: GenerateRequest):
             "reasoning": result.get("reasoning", "無企劃屬性邏輯"),
             "mechanism": result.get("mechanism", "未知機制"),
             "hooks": result.get("hooks", ["", "", ""]),
+            "hook_evaluations": result.get("hook_evaluations", []),
             "critic_score": result.get("critic_score", 0),
             "critic_breakdown": result.get("critic_breakdown", {}),
             "critic_comment": result.get("critic_comment", ""),
@@ -262,6 +276,7 @@ async def surprise_generate():
             "reasoning": result.get("reasoning", "無企劃屬性邏輯"),
             "mechanism": result.get("mechanism", ""),
             "hooks": result.get("hooks", ["", "", ""]),
+            "hook_evaluations": result.get("hook_evaluations", []),
             "critic_score": result.get("critic_score", 0),
             "critic_breakdown": result.get("critic_breakdown", {}),
             "critic_comment": result.get("critic_comment", ""),

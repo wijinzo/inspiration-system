@@ -138,14 +138,16 @@
                 <div id="resultContent" class="result-area hidden">
 
                     <div class="science-core-box">
-                        <div class="science-core-label">
-                            <i class="fa-solid fa-flask-vial"></i> 科普核心
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                            <div class="science-core-label" style="margin-bottom: 0;">
+                                <i class="fa-solid fa-flask-vial"></i> 科普核心
+                            </div>
+                            <div id="mechanismTag" class="mechanism-tag science-mechanism" style="margin-top: 0; display: none;">
+                                <i class="fa-solid fa-atom"></i>
+                                <span id="mechanismText"></span>
+                            </div>
                         </div>
                         <p id="scienceCoreText" class="science-core-text"></p>
-                        <div id="mechanismTag" class="mechanism-tag science-mechanism">
-                            <i class="fa-solid fa-atom"></i>
-                            <span id="mechanismText"></span>
-                        </div>
                     </div>
 
                     <div class="hook-section glass-panel">
@@ -163,6 +165,16 @@
                         <blockquote id="hookTab0" class="hook-quote hook-quote--active"></blockquote>
                         <blockquote id="hookTab1" class="hook-quote hidden"></blockquote>
                         <blockquote id="hookTab2" class="hook-quote hidden"></blockquote>
+                        
+                        <!-- Individual Hook Evaluation -->
+                        <div id="hookEvalContainer" class="hook-eval-container hidden" style="margin-top:1rem; padding:1rem; background:rgba(255,255,255,0.03); border-radius:0.5rem; border:1px solid rgba(255,255,255,0.1);">
+                            <div style="font-weight:600; margin-bottom:0.75rem; color:var(--text-primary); display:flex; align-items:center; gap:0.5rem;">
+                                <i class="fa-solid fa-chart-pie" style="color:var(--accent-primary)"></i> 單獨評分與評語
+                            </div>
+                            <div id="hookEvalScores" class="breakdown-grid" style="margin-bottom:0.75rem"></div>
+                            <p id="hookEvalComment" style="color:var(--text-secondary); margin:0; font-size:0.9rem; line-height:1.5;"></p>
+                        </div>
+
                         <div class="hook-actions">
                             <button id="copyHookBtn" class="btn btn-ghost btn-sm">
                                 <i class="fa-solid fa-copy"></i> 複製此角度
@@ -278,19 +290,19 @@
             <div class="db-table-wrapper">
                 <div id="dbPanelScience" class="db-panel db-panel--active">
                     <table class="db-table">
-                        <thead><tr><th>#</th><th>標題</th><th>來源</th><th>機制</th><th>時間</th><th>連結</th></tr></thead>
+                        <thead><tr><th>#</th><th>標題</th><th>來源</th><th>機制</th><th>時間</th><th>連結</th><th>操作</th></tr></thead>
                         <tbody id="dbBodyScience"></tbody>
                     </table>
                 </div>
                 <div id="dbPanelSocial" class="db-panel hidden">
                     <table class="db-table">
-                        <thead><tr><th>#</th><th>標題</th><th>來源</th><th>類別</th><th>時間</th><th>連結</th></tr></thead>
+                        <thead><tr><th>#</th><th>標題</th><th>來源</th><th>類別</th><th>時間</th><th>連結</th><th>操作</th></tr></thead>
                         <tbody id="dbBodySocial"></tbody>
                     </table>
                 </div>
                 <div id="dbPanelTrends" class="db-panel hidden">
                     <table class="db-table">
-                        <thead><tr><th>#</th><th>標題</th><th>來源</th><th>機制</th><th>時間</th><th>連結</th></tr></thead>
+                        <thead><tr><th>#</th><th>標題</th><th>來源</th><th>機制</th><th>時間</th><th>連結</th><th>操作</th></tr></thead>
                         <tbody id="dbBodyTrends"></tbody>
                     </table>
                 </div>
