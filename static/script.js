@@ -32,11 +32,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const paginationState = {
 
-        science: { page: 1, total: 0, loading: false, done: false },
+        science: { page: 1, total: 0, loading: false, done: false, search: '' },
 
-        social:  { page: 1, total: 0, loading: false, done: false },
+        social:  { page: 1, total: 0, loading: false, done: false, search: '' },
 
-        news:    { page: 1, total: 0, loading: false, done: false },
+        news:    { page: 1, total: 0, loading: false, done: false, search: '' },
 
     };
 
@@ -224,7 +224,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         }
 
-        if (src.includes('自由時報') || src.includes('公視') || src.includes('news')) {
+        if (src.includes('自由時報') || src.includes('liberty times') || 
+            src.includes('公視') || src.includes('pts') || 
+            src.includes('news')) {
 
             const name = item.source || '新聞';
 
@@ -350,17 +352,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (cardType === 'science') {
 
-            const pipelineBadge = item.pipeline === 'RSS'
+            if (item.pipeline === 'Manual' || item.source === '手動上傳') {
+                badgeHtml = '<span class="pipeline-badge manual-badge"><i class="fa-solid fa-pen-nib"></i> 手動上傳</span>';
+            } else {
+                const pipelineBadge = item.pipeline === 'RSS'
+                    ? '<span class="pipeline-badge rss-badge"><i class="fa-solid fa-rss"></i> RSS</span>'
+                    : '<span class="pipeline-badge brave-badge"><i class="fa-solid fa-shield"></i> Brave</span>';
+                badgeHtml = pipelineBadge + getCredibilityBadge(item);
+            }
 
-                ? '<span class="pipeline-badge rss-badge"><i class="fa-solid fa-rss"></i> RSS</span>'
+            if (item.category) {
 
-                : '<span class="pipeline-badge brave-badge"><i class="fa-solid fa-shield"></i> Brave</span>';
+                badgeHtml += `<span class="pipeline-badge category-badge">${item.category}</span>`;
 
-            badgeHtml = pipelineBadge + getCredibilityBadge(item);
+            }
 
         } else {
 
-            badgeHtml = getSourceBadge(item);
+            if (item.source === '手動上傳') {
+                badgeHtml = '<span class="pipeline-badge manual-badge"><i class="fa-solid fa-pen-nib"></i> 手動上傳</span>';
+            } else {
+                badgeHtml = getSourceBadge(item);
+            }
 
             // Add Category Badge if specific
 
@@ -916,7 +929,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
 
-            const res = await fetch(`${apiMap[type]}?page=${page}&limit=${PAGE_SIZE}`);
+            const queryParam = state.search ? `&search=${encodeURIComponent(state.search)}` : '';
+
+            const res = await fetch(`${apiMap[type]}?page=${page}&limit=${PAGE_SIZE}${queryParam}`);
 
             const result = await res.json();
 
@@ -966,7 +981,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         for (const key of Object.keys(paginationState)) {
 
-            paginationState[key] = { page: 1, total: 0, loading: false, done: false };
+            const currentSearch = paginationState[key]?.search || '';
+
+            paginationState[key] = { page: 1, total: 0, loading: false, done: false, search: currentSearch };
 
         }
 
@@ -1369,9 +1386,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
         criticBreakdown.innerHTML = Object.entries(breakdown)
-
+            .filter(([key]) => Object.keys(labels).includes(key))
             .map(([key, val]) => {
-
                 const label = labels[key] || key;
 
                 // 優先判定 Science 為 4 分，其餘設為 3 分
@@ -1583,98 +1599,55 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
         try {
-
             const hooks = currentData.hooks || [];
-
             const payload = {
-
                 science_core: currentData.science_core || '',
-
                 mechanism: currentData.mechanism || '',
-
                 hooks_json: JSON.stringify(hooks),
-
                 critic_score: currentData.critic_score || 0,
-
                 critic_breakdown_json: currentData.critic_breakdown ? JSON.stringify(currentData.critic_breakdown) : '{}',
-
                 matched_trend_url: currentData.matched_trend?.url || '',
-
                 matched_science_url: currentData.matched_science?.url || '',
-
+                matched_social_url: currentData.matched_social?.url || '',
+                reasoning: currentData.reasoning || '',
+                critic_comment: currentData.critic_comment || '',
+                hook_evaluations_json: currentData.hook_evaluations ? JSON.stringify(currentData.hook_evaluations) : '[]',
             };
 
-
-
             const res = await fetch('/api/save', {
-
                 method: 'POST',
-
                 headers: { 'Content-Type': 'application/json' },
-
                 body: JSON.stringify(payload),
-
             });
 
-
-
             const result = await res.json();
-
             if (res.ok) {
-
                 saveBtn.innerHTML = '<i class="fa-solid fa-check"></i> 已儲存';
-
                 setTimeout(() => {
-
-                    saveBtn.innerHTML = '<i class="fa-solid fa-save"></i> 儲存 CSV';
-
+                    saveBtn.innerHTML = '<i class="fa-solid fa-save"></i> 儲存靈感';
                 }, 2000);
-
             } else {
-
                 throw new Error(result.detail || '儲存失敗');
-
             }
-
         } catch (err) {
-
             alert('儲存失敗: ' + err.message);
-
         } finally {
-
             saveBtn.disabled = false;
-
         }
-
     }
-
-
 
     // ─── History Drawer ───
 
-
-
     async function loadHistory() {
-
         historyList.innerHTML = '<div class="loader-container" style="height:100px;"><div class="spinner" style="width:30px;height:30px;"></div></div>';
-
         try {
-
             const resp = await fetch('/api/history');
-
             const data = await resp.json();
 
-
-
             if (!data.history || data.history.length === 0) {
-
                 historyList.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:2rem;">無歷史紀錄</p>';
-
                 return;
-
             }
-
-
 
             historyList.innerHTML = data.history.map((item, idx) => {
                 let hooksPreview = '';
@@ -1698,13 +1671,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 保存歷史資料供點擊檢視用
             window._historyCache = data.history;
-
         } catch (err) {
-
             historyList.innerHTML = `<p style="color:#ef4444;text-align:center;padding:2rem;">載入失敗: ${err.message}</p>`;
-
         }
-
     }
 
     // ─── View History Item (展開歷史靈感詳情) ───
@@ -1717,20 +1686,22 @@ document.addEventListener('DOMContentLoaded', () => {
         try { hooks = JSON.parse(item.hooks_json || '[]'); } catch(e) {}
         let breakdown = {};
         try { breakdown = JSON.parse(item.critic_breakdown_json || '{}'); } catch(e) {}
+        let hook_evaluations = [];
+        try { hook_evaluations = JSON.parse(item.hook_evaluations_json || '[]'); } catch(e) {}
 
         // 組成可渲染的 data 結構，復用 renderResult
         const fakeData = {
             science_core: item.science_core || '',
             mechanism: item.mechanism || '',
             hooks: hooks,
-            hook_evaluations: [],
+            hook_evaluations: hook_evaluations,
             critic_score: item.critic_score || 0,
             critic_breakdown: breakdown,
-            critic_comment: '',
-            reasoning: '',
+            critic_comment: item.critic_comment || '',
+            reasoning: item.reasoning || '',
             matched_science: { url: item.selected_science, title: '' },
             matched_trend: { url: item.selected_trend, title: '' },
-            matched_social: {},
+            matched_social: { url: item.selected_social, title: '' },
         };
 
         currentData = fakeData;
@@ -2371,15 +2342,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const source = item.source || item.pipeline || '—';
 
-            const col3 = type === 'social' ? (item.category || '—') : (item.mechanism || '—');
-
             const time = item.created_at ? new Date(item.created_at).toLocaleDateString('zh-TW') : '—';
-
-            const link = item.url
-
-                ? `<a href="${item.url}" target="_blank" class="db-link"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>`
-
-                : '—';
+            const link = item.url ? `<a href="${item.url}" target="_blank" class="db-link"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>` : '—';
 
             const apiType = apiTypeMap[type];
 
@@ -2391,23 +2355,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 : '—';
 
-            return `<tr>
-
-                <td>${i + 1}</td>
-
-                <td class="db-cell-title" title="${title}">${title}</td>
-
-                <td>${source}</td>
-
-                <td>${col3}</td>
-
-                <td>${time}</td>
-
-                <td>${link}</td>
-
-                <td>${delBtn}</td>
-
-            </tr>`;
+            if (type === 'science') {
+                return `<tr>
+                    <td>${i + 1}</td>
+                    <td class="db-cell-title" title="${title}">${title}</td>
+                    <td>${source}</td>
+                    <td>${item.category || '—'}</td>
+                    <td>${item.mechanism || '—'}</td>
+                    <td>${time}</td>
+                    <td>${link}</td>
+                    <td>${delBtn}</td>
+                </tr>`;
+            } else {
+                const col3 = type === 'social' ? (item.category || '—') : (item.mechanism || '—');
+                return `<tr>
+                    <td>${i + 1}</td>
+                    <td class="db-cell-title" title="${title}">${title}</td>
+                    <td>${source}</td>
+                    <td>${col3}</td>
+                    <td>${time}</td>
+                    <td>${link}</td>
+                    <td>${delBtn}</td>
+                </tr>`;
+            }
 
         }).join('');
 
@@ -2505,7 +2475,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const filtered = q
 
-                    ? dbDataCache[type].filter(item => (item.title || '').toLowerCase().includes(q))
+                    ? dbDataCache[type].filter(item => 
+                        (item.title || '').toLowerCase().includes(q) || 
+                        (item.category || '').toLowerCase().includes(q)
+                      )
 
                     : dbDataCache[type];
 
@@ -2518,6 +2491,191 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
+
+    // Main Science Tab Search filter (Backend search)
+    let searchTimeout;
+    const scienceSearchInput = document.getElementById('scienceSearchInput');
+    if (scienceSearchInput) {
+        scienceSearchInput.addEventListener('input', (e) => {
+            const q = e.target.value.trim().toLowerCase();
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                paginationState.science = { page: 1, total: 0, loading: false, done: false, search: q };
+                document.getElementById('scienceList').innerHTML = '';
+                loadPage('science', 1);
+            }, 300);
+        });
+    }
+
+    // ─── Manual Upload Modal ───
+
+    const fabAddBtn = document.getElementById('fabAddBtn');
+    const manualModal = document.getElementById('manualModal');
+    const closeManualModalBtn = document.getElementById('closeManualModalBtn');
+    const manualBackdrop = manualModal?.querySelector('.manual-modal__backdrop');
+
+    function openManualModal() {
+        if (manualModal) manualModal.classList.remove('hidden');
+    }
+    function closeManualModal() {
+        if (manualModal) manualModal.classList.add('hidden');
+    }
+
+    if (fabAddBtn) fabAddBtn.addEventListener('click', openManualModal);
+    if (closeManualModalBtn) closeManualModalBtn.addEventListener('click', closeManualModal);
+    if (manualBackdrop) manualBackdrop.addEventListener('click', closeManualModal);
+
+    // Manual Modal Tab Switching
+    document.querySelectorAll('.manual-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.manual-tab-btn').forEach(b => b.classList.remove('manual-tab-btn--active'));
+            btn.classList.add('manual-tab-btn--active');
+            document.querySelectorAll('.manual-panel').forEach(p => p.classList.add('hidden'));
+            const target = btn.dataset.mtab;
+            const panelId = target === 'science' ? 'manualTabScience' : 'manualTabMeme';
+            document.getElementById(panelId)?.classList.remove('hidden');
+        });
+    });
+
+    // PDF Dropzone
+    const pdfDropzone = document.getElementById('pdfDropzone');
+    const pdfInput = document.getElementById('msSciPdf');
+    const pdfFilename = document.getElementById('pdfFilename');
+
+    if (pdfDropzone && pdfInput) {
+        pdfDropzone.addEventListener('click', () => pdfInput.click());
+
+        pdfDropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            pdfDropzone.classList.add('dragover');
+        });
+        pdfDropzone.addEventListener('dragleave', () => {
+            pdfDropzone.classList.remove('dragover');
+        });
+        pdfDropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            pdfDropzone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].name.endsWith('.pdf')) {
+                pdfInput.files = files;
+                showPdfFilename(files[0].name);
+            }
+        });
+        pdfInput.addEventListener('change', () => {
+            if (pdfInput.files.length > 0) {
+                showPdfFilename(pdfInput.files[0].name);
+            }
+        });
+    }
+
+    function showPdfFilename(name) {
+        if (pdfFilename) {
+            pdfFilename.textContent = `📄 ${name}`;
+            pdfFilename.classList.remove('hidden');
+        }
+    }
+
+    // Toast Notification
+    window.showToast = function(message, type = 'success') {
+        const container = document.getElementById('toastContainer');
+        if (!container) return;
+        const toast = document.createElement('div');
+        toast.className = `toast toast--${type}`;
+        const icon = type === 'success' ? 'fa-circle-check' : 'fa-circle-xmark';
+        toast.innerHTML = `<i class="fa-solid ${icon}"></i> ${message}`;
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.classList.add('toast--fade-out');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    };
+
+    // Science Form Submit
+    const scienceForm = document.getElementById('manualScienceForm');
+    if (scienceForm) {
+        scienceForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitScienceBtn');
+            const origHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> AI 分析中...';
+
+            try {
+                const formData = new FormData();
+                formData.append('title', document.getElementById('msSciTitle').value);
+                formData.append('url', document.getElementById('msSciUrl').value);
+                formData.append('abstract', document.getElementById('msSciAbstract').value);
+                const pdfFile = document.getElementById('msSciPdf').files[0];
+                if (pdfFile) formData.append('pdf_file', pdfFile);
+
+                const res = await fetch('/api/manual/science', { method: 'POST', body: formData });
+                const data = await res.json();
+
+                if (res.ok && data.status === 'success') {
+                    showToast('✨ 科學論文已新增至資料庫！', 'success');
+                    scienceForm.reset();
+                    if (pdfFilename) { pdfFilename.textContent = ''; pdfFilename.classList.add('hidden'); }
+                    closeManualModal();
+                    // Reload science panel
+                    paginationState.science = { page: 1, total: 0, loading: false, done: false, search: paginationState.science.search || '' };
+                    scienceList.innerHTML = '';
+                    loadPage('science', 1);
+                } else {
+                    showToast(data.detail || '新增失敗', 'error');
+                }
+            } catch (err) {
+                showToast(`新增失敗：${err.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origHtml;
+            }
+        });
+    }
+
+    // Meme Form Submit
+    const memeForm = document.getElementById('manualMemeForm');
+    if (memeForm) {
+        memeForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitMemeBtn');
+            const origHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 新增中...';
+
+            try {
+                const payload = {
+                    title: document.getElementById('msMemTitle').value,
+                    summary: document.getElementById('msMemSummary').value,
+                    url: document.getElementById('msMemUrl').value,
+                    category: document.getElementById('msMemCategory').value
+                };
+
+                const res = await fetch('/api/manual/social', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                if (res.ok && data.status === 'success') {
+                    showToast('✨ 迷因已新增至資料庫！', 'success');
+                    memeForm.reset();
+                    closeManualModal();
+                    // Reload social panel
+                    paginationState.social = { page: 1, total: 0, loading: false, done: false, search: '' };
+                    socialList.innerHTML = '';
+                    loadPage('social', 1);
+                } else {
+                    showToast(data.detail || '新增失敗', 'error');
+                }
+            } catch (err) {
+                showToast(`新增失敗：${err.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origHtml;
+            }
+        });
+    }
 
     // ─── Init ───
 

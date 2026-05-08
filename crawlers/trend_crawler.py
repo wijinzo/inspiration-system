@@ -71,10 +71,10 @@ def fetch_news_rss():
 
 def _identify_source(url: str) -> str:
     if "ltn" in url:
-        return "Liberty Times"
+        return "自由時報"
     elif "pts" in url:
-        return "PTS News"
-    return "Others"
+        return "公視新聞"
+    return "其他來源"
 
 
 def fetch_google_trends():

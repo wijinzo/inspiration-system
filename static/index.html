@@ -98,6 +98,10 @@
                             <i class="fa-solid fa-circle-info"></i>
                             請先從下方選取一篇科學文章作為核心定錨
                         </div>
+                        <div class="main-search-box" style="margin-bottom: 1rem; position: relative;">
+                            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-secondary);"></i>
+                            <input type="text" id="scienceSearchInput" placeholder="快速搜尋標題或類別..." autocomplete="off" style="width: 100%; padding: 10px 10px 10px 36px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); color: white; font-family: inherit; transition: all 0.2s;">
+                        </div>
                         <div id="scienceList" class="card-list"></div>
                         <div class="scroll-anchor" id="scienceAnchor"></div>
                     </div>
@@ -290,7 +294,7 @@
             <div class="db-table-wrapper">
                 <div id="dbPanelScience" class="db-panel db-panel--active">
                     <table class="db-table">
-                        <thead><tr><th>#</th><th>標題</th><th>來源</th><th>機制</th><th>時間</th><th>連結</th><th>操作</th></tr></thead>
+                        <thead><tr><th>#</th><th>標題</th><th>來源</th><th>類別</th><th>機制</th><th>時間</th><th>連結</th><th>操作</th></tr></thead>
                         <tbody id="dbBodyScience"></tbody>
                     </table>
                 </div>
@@ -335,7 +339,100 @@
             </div>
         </div>
     </div>
-    <script src="/static/script.js?v=3.5"></script>
+
+    <!-- Floating Action Button (Manual Add) -->
+    <button id="fabAddBtn" class="fab-btn" title="手動新增資料">
+        <i class="fa-solid fa-plus"></i>
+    </button>
+
+    <!-- Manual Upload Modal -->
+    <div id="manualModal" class="manual-modal hidden">
+        <div class="manual-modal__backdrop"></div>
+        <div class="manual-modal__panel glass-panel">
+            <div class="manual-modal__header">
+                <h2><i class="fa-solid fa-cloud-arrow-up"></i> 手動新增資料</h2>
+                <button class="close-btn" id="closeManualModalBtn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <nav class="manual-tabs">
+                <button class="manual-tab-btn manual-tab-btn--active" data-mtab="science">
+                    <i class="fa-solid fa-microscope"></i> 科學論文
+                </button>
+                <button class="manual-tab-btn" data-mtab="meme">
+                    <i class="fa-solid fa-masks-theater"></i> 迷因 / 梗
+                </button>
+            </nav>
+            <div class="manual-modal__body">
+                <!-- Science Tab -->
+                <div id="manualTabScience" class="manual-panel manual-panel--active">
+                    <form id="manualScienceForm" class="manual-form">
+                        <div class="form-group">
+                            <label for="msSciTitle"><i class="fa-solid fa-heading"></i> 標題 <span class="required">*</span></label>
+                            <input type="text" id="msSciTitle" placeholder="論文標題（必填）" required autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label for="msSciUrl"><i class="fa-solid fa-link"></i> 網址</label>
+                            <input type="text" id="msSciUrl" placeholder="論文網址（可留空）" autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label for="msSciAbstract"><i class="fa-solid fa-align-left"></i> Abstract</label>
+                            <textarea id="msSciAbstract" rows="5" placeholder="貼上摘要，AI 將自動分析科學類別與底層機制..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fa-solid fa-file-pdf"></i> 上傳 PDF（後續生成腳本時使用）</label>
+                            <div class="pdf-dropzone" id="pdfDropzone">
+                                <i class="fa-solid fa-cloud-arrow-up fa-2x"></i>
+                                <p>拖放 PDF 至此，或<span class="pdf-browse">點此選擇檔案</span></p>
+                                <input type="file" id="msSciPdf" accept=".pdf" hidden>
+                                <div class="pdf-filename hidden" id="pdfFilename"></div>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary btn-glow" id="submitScienceBtn">
+                                <i class="fa-solid fa-flask"></i> 新增至科學資料庫
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                <!-- Meme Tab -->
+                <div id="manualTabMeme" class="manual-panel hidden">
+                    <form id="manualMemeForm" class="manual-form">
+                        <div class="form-group">
+                            <label for="msMemTitle"><i class="fa-solid fa-heading"></i> 標題 <span class="required">*</span></label>
+                            <input type="text" id="msMemTitle" placeholder="迷因 / 梗的標題（必填）" required autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label for="msMemSummary"><i class="fa-solid fa-comment-dots"></i> 說明 <span class="required">*</span></label>
+                            <textarea id="msMemSummary" rows="4" placeholder="這個迷因或梗是什麼？為什麼火？" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="msMemUrl"><i class="fa-solid fa-link"></i> 相關連結</label>
+                            <input type="text" id="msMemUrl" placeholder="來源網址（可留空）" autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label for="msMemCategory"><i class="fa-solid fa-tag"></i> 類別</label>
+                            <select id="msMemCategory">
+                                <option value="meme">網路迷因</option>
+                                <option value="anime">動漫相關</option>
+                                <option value="gaming_meme">遊戲迷因</option>
+                                <option value="social_trend">社群趨勢</option>
+                                <option value="other">其他</option>
+                            </select>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary btn-glow" id="submitMemeBtn">
+                                <i class="fa-solid fa-masks-theater"></i> 新增至話題梗資料庫
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="/static/script.js?v=3.6"></script>
 </body>
 
 </html>

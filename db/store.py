@@ -42,10 +42,24 @@ def init_db():
             source TEXT,
             pipeline TEXT,
             mechanism TEXT,
+            category TEXT,
+            pdf_path TEXT,
             credibility_score INTEGER DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+
+    # Add category column if not exists (migration)
+    try:
+        cursor.execute("ALTER TABLE science_articles ADD COLUMN category TEXT DEFAULT ''")
+    except:
+        pass  # Column already exists
+
+    # Add pdf_path column if not exists (migration)
+    try:
+        cursor.execute("ALTER TABLE science_articles ADD COLUMN pdf_path TEXT DEFAULT ''")
+    except:
+        pass  # Column already exists
 
     # 2. 社群時事表 (YouTube/Dcard等)
     cursor.execute('''
@@ -118,9 +132,22 @@ def init_db():
         )
     ''')
 
+    # Add missing columns for full inspiration state (migration)
+    try:
+        cursor.execute("ALTER TABLE generation_history ADD COLUMN reasoning TEXT DEFAULT ''")
+    except:
+        pass
+    try:
+        cursor.execute("ALTER TABLE generation_history ADD COLUMN critic_comment TEXT DEFAULT ''")
+    except:
+        pass
+    try:
+        cursor.execute("ALTER TABLE generation_history ADD COLUMN hook_evaluations_json TEXT DEFAULT '[]'")
+    except:
+        pass
+
     conn.commit()
     conn.close()
-
 
 # ─── Data Saving (Crawlers) ───
 
@@ -132,17 +159,20 @@ def save_science(articles: list) -> dict:
     for a in articles:
         c.execute("SELECT 1 FROM science_articles WHERE url=?", (a["url"],))
         exists = c.fetchone() is not None
+        pdf_path = a.get("pdf_path", "")
         c.execute('''
             INSERT INTO science_articles 
-            (title, summary, url, source, pipeline, mechanism, credibility_score)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            (title, summary, url, source, pipeline, mechanism, category, pdf_path, credibility_score)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(url) DO UPDATE SET 
             mechanism=excluded.mechanism,
+            category=excluded.category,
+            pdf_path=CASE WHEN excluded.pdf_path != '' THEN excluded.pdf_path ELSE science_articles.pdf_path END,
             credibility_score=excluded.credibility_score
         ''', (
             a["title"], a.get("summary", ""), a["url"], 
             a.get("source", ""), a.get("pipeline", ""),
-            a.get("mechanism", ""), a.get("credibility_score", 1)
+            a.get("mechanism", ""), a.get("category", ""), pdf_path, a.get("credibility_score", 1)
         ))
         if exists:
             updated += 1
@@ -243,17 +273,20 @@ def save_history(payload: dict):
     c = conn.cursor()
     c.execute('''
         INSERT INTO generation_history 
-        (selected_science, selected_trend, selected_social, science_core, mechanism, hooks_json, critic_score, critic_breakdown_json)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        (selected_science, selected_trend, selected_social, science_core, mechanism, hooks_json, critic_score, critic_breakdown_json, reasoning, critic_comment, hook_evaluations_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         payload.get("matched_science_url", ""),
         payload.get("matched_trend_url", ""),
-        "", # 未來若支援直接選擇 social 的 URL 可以補上
+        payload.get("matched_social_url", ""),
         payload.get("science_core", ""),
         payload.get("mechanism", ""),
         payload.get("hooks_json", "[]"),
         payload.get("critic_score", 0),
-        payload.get("critic_breakdown_json", "{}")
+        payload.get("critic_breakdown_json", "{}"),
+        payload.get("reasoning", ""),
+        payload.get("critic_comment", ""),
+        payload.get("hook_evaluations_json", "[]")
     ))
     conn.commit()
     conn.close()
@@ -287,16 +320,30 @@ def delete_item(table_type: str, url: str) -> bool:
 
 # ─── Data Fetching (Frontend API) ───
 
-def fetch_latest_science(limit=15, offset=0):
+def fetch_latest_science(limit=15, offset=0, search=None):
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
-    c.execute("SELECT * FROM science_articles ORDER BY created_at DESC LIMIT ? OFFSET ?", (limit, offset))
-    rows = c.fetchall()
     
-    c.execute("SELECT COUNT(*) FROM science_articles")
-    total = c.fetchone()[0]
-    
+    if search:
+        search_pattern = f"%{search}%"
+        query = """
+            SELECT * FROM science_articles 
+            WHERE title LIKE ? OR category LIKE ? OR mechanism LIKE ?
+            ORDER BY created_at DESC LIMIT ? OFFSET ?
+        """
+        c.execute(query, (search_pattern, search_pattern, search_pattern, limit, offset))
+        rows = c.fetchall()
+        
+        c.execute("SELECT COUNT(*) FROM science_articles WHERE title LIKE ? OR category LIKE ? OR mechanism LIKE ?", (search_pattern, search_pattern, search_pattern))
+        total = c.fetchone()[0]
+    else:
+        c.execute("SELECT * FROM science_articles ORDER BY created_at DESC LIMIT ? OFFSET ?", (limit, offset))
+        rows = c.fetchall()
+        
+        c.execute("SELECT COUNT(*) FROM science_articles")
+        total = c.fetchone()[0]
+        
     c.execute("SELECT MAX(created_at) FROM science_articles")
     last_updated = c.fetchone()[0]
     conn.close()
@@ -456,6 +503,17 @@ def get_trend_by_url(url: str):
     row = c.fetchone()
     conn.close()
     return dict(row) if row else None
+
+def get_pdf_path_by_url(url: str) -> str:
+    """根據 URL 取得科學文章的本地 PDF 路徑（若有）"""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('SELECT pdf_path FROM science_articles WHERE url = ?', (url,))
+    row = c.fetchone()
+    conn.close()
+    if row and row[0]:
+        return row[0]
+    return ""
 
 # 建立表格
 init_db()

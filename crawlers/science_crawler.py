@@ -292,6 +292,7 @@ def extract_science_mechanisms(articles: list) -> list:
 [
   {{
     "index": 編號,
+    "category": "科學類別（例如：心理學、神經科學、物理學、生物學，1-2個詞）",
     "mechanism": "科學底層機制（10-30字）",
     "plain_summary": "一句話白話摘要（讓高中生能懂）"
   }}
@@ -308,6 +309,7 @@ def extract_science_mechanisms(articles: list) -> list:
             idx = item.get("index", 1) - 1
             if 0 <= idx < len(articles):
                 articles[idx]["mechanism"] = item.get("mechanism", "")
+                articles[idx]["category"] = item.get("category", "")
                 if item.get("plain_summary"):
                     articles[idx]["summary"] = item["plain_summary"]
 
@@ -317,6 +319,8 @@ def extract_science_mechanisms(articles: list) -> list:
         for a in articles:
             if "mechanism" not in a:
                 a["mechanism"] = "(Extraction failed)"
+            if "category" not in a:
+                a["category"] = ""
 
     return articles
 

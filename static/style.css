@@ -1715,3 +1715,273 @@ details[open] .collapse-icon {
     background: rgba(15, 23, 42, 0.7);
     border-top: 1px solid var(--border-color);
 }
+
+/* ═══ Floating Action Button ═══ */
+.fab-btn {
+    position: fixed;
+    bottom: 28px;
+    left: 28px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    box-shadow: 0 4px 24px rgba(99, 102, 241, 0.5);
+    z-index: 9000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.fab-btn:hover {
+    transform: rotate(90deg) scale(1.1);
+    box-shadow: 0 6px 32px rgba(99, 102, 241, 0.7);
+}
+.fab-btn:active {
+    transform: rotate(90deg) scale(0.95);
+}
+
+/* ═══ Manual Upload Modal ═══ */
+.manual-modal {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 1;
+    transition: opacity 0.3s;
+}
+.manual-modal.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+.manual-modal__backdrop {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+}
+.manual-modal__panel {
+    position: relative;
+    width: 90%;
+    max-width: 620px;
+    max-height: 85vh;
+    border-radius: var(--radius-lg);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: modal-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+@keyframes modal-pop {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+.manual-modal__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    background: rgba(15, 23, 42, 0.7);
+    border-bottom: 1px solid var(--border-color);
+}
+.manual-modal__header h2 {
+    font-size: 1.15rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    background: linear-gradient(90deg, #a855f7, #6366f1);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+.manual-modal__body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+}
+
+/* Manual Modal Tabs */
+.manual-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(15, 23, 42, 0.4);
+}
+.manual-tab-btn {
+    flex: 1;
+    padding: 12px 16px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 500;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+.manual-tab-btn:hover { color: var(--text-color); }
+.manual-tab-btn--active {
+    color: #a855f7;
+    border-bottom-color: #a855f7;
+    font-weight: 600;
+}
+.manual-panel.hidden { display: none; }
+
+/* Form Styles */
+.manual-form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.form-group label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-color);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.form-group label .required {
+    color: #ef4444;
+    font-size: 0.75rem;
+}
+.form-group input[type="text"],
+.form-group textarea,
+.form-group select {
+    padding: 10px 14px;
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(0,0,0,0.25);
+    color: var(--text-color);
+    font-family: inherit;
+    font-size: 0.88rem;
+    transition: all 0.2s;
+    outline: none;
+    width: 100%;
+    box-sizing: border-box;
+}
+.form-group input[type="text"]:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+    border-color: rgba(168, 85, 247, 0.6);
+    box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.15);
+}
+.form-group textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+.form-group select {
+    cursor: pointer;
+    appearance: auto;
+}
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 8px;
+}
+
+/* PDF Dropzone */
+.pdf-dropzone {
+    border: 2px dashed rgba(168, 85, 247, 0.3);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    text-align: center;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+.pdf-dropzone:hover,
+.pdf-dropzone.dragover {
+    border-color: rgba(168, 85, 247, 0.7);
+    background: rgba(168, 85, 247, 0.08);
+    color: var(--text-color);
+}
+.pdf-dropzone p {
+    margin: 0;
+    font-size: 0.85rem;
+}
+.pdf-browse {
+    color: #a855f7;
+    text-decoration: underline;
+    cursor: pointer;
+}
+.pdf-filename {
+    font-size: 0.82rem;
+    color: #a855f7;
+    font-weight: 600;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.pdf-filename.hidden { display: none; }
+
+/* Manual Upload Badge */
+.manual-badge {
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.2));
+    color: #fbbf24;
+    border: 1px solid rgba(251, 191, 36, 0.35);
+}
+
+/* ═══ Toast Notifications ═══ */
+.toast-container {
+    position: fixed;
+    bottom: 96px;
+    left: 28px;
+    z-index: 99999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.toast {
+    padding: 12px 20px;
+    border-radius: var(--radius-md);
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    animation: toast-in 0.35s ease-out;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    backdrop-filter: blur(8px);
+}
+.toast--success {
+    background: rgba(34, 197, 94, 0.85);
+    border: 1px solid rgba(34, 197, 94, 0.5);
+}
+.toast--error {
+    background: rgba(239, 68, 68, 0.85);
+    border: 1px solid rgba(239, 68, 68, 0.5);
+}
+.toast--fade-out {
+    animation: toast-out 0.3s ease-in forwards;
+}
+@keyframes toast-in {
+    from { transform: translateX(-30px); opacity: 0; }
+    to   { transform: translateX(0); opacity: 1; }
+}
+@keyframes toast-out {
+    from { transform: translateX(0); opacity: 1; }
+    to   { transform: translateX(-30px); opacity: 0; }
+}

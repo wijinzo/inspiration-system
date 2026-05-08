@@ -2,7 +2,7 @@ import os
 import asyncio
 import sys
 from datetime import datetime
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 
 if sys.stdout.encoding.lower() != 'utf-8':
     try:
@@ -20,6 +20,8 @@ from crawlers.trend_crawler import run_trend_pipeline
 from crawlers.science_crawler import run_science_pipeline
 from crawlers.social_crawler import run_social_pipeline
 from crawlers.article_scraper import scrape_sciencedaily_article
+from crawlers.pdf_parser import extract_text_from_pdf, extract_text_from_bytes, UnreadablePDFError
+from crawlers.science_crawler import extract_science_mechanisms
 from engine.pipeline import run_v3_pipeline
 from engine.script_generator import run_dual_agent_script_generation
 import io
@@ -56,9 +58,9 @@ def get_social(page: int = 1, limit: int = 15):
     return store.fetch_latest_social(limit=limit, offset=offset)
 
 @app.get("/api/data/science")
-def get_science(page: int = 1, limit: int = 15):
+def get_science(page: int = 1, limit: int = 15, search: Optional[str] = None):
     offset = (page - 1) * limit
-    return store.fetch_latest_science(limit=limit, offset=offset)
+    return store.fetch_latest_science(limit=limit, offset=offset, search=search)
 
 @app.get("/api/history")
 def get_history():
@@ -156,12 +158,21 @@ async def build_script(req: BuildScriptRequest):
     雙大腦生腳本流程：拉全文 -> 提取迷因 -> Agent 1 拆解加比喻 -> Agent 2 生成泛科學腳本
     """
     try:
-        # 1. 抓取全文
-        scrape_res = scrape_sciencedaily_article(req.science_url)
-        if not scrape_res["success"]:
-            raise HTTPException(status_code=400, detail=f"科學原稿爬取失敗: {scrape_res['error']}")
-        
-        science_text = scrape_res["text"]
+        # 1. 抓取全文 — 優先使用本地 PDF
+        pdf_path = store.get_pdf_path_by_url(req.science_url)
+        if pdf_path and os.path.exists(pdf_path):
+            print(f"[build_script] 使用本地 PDF: {pdf_path}")
+            try:
+                science_text = extract_text_from_pdf(pdf_path)
+                if not science_text:
+                    raise HTTPException(status_code=400, detail="本地 PDF 解析失敗，無法提取文字")
+            except UnreadablePDFError as e:
+                return {"status": "unreadable_pdf", "message": str(e)}
+        else:
+            scrape_res = scrape_sciencedaily_article(req.science_url)
+            if not scrape_res["success"]:
+                raise HTTPException(status_code=400, detail=f"科學原稿爬取失敗: {scrape_res['error']}")
+            science_text = scrape_res["text"]
         # 從資料庫撈出先前由 science_crawler 存入的正式標題，若無則降級使用當次爬蟲找到的標籤
         science_title = store.get_science_title_by_url(req.science_url)
         if not science_title:
@@ -239,6 +250,10 @@ class SaveRequest(BaseModel):
     critic_breakdown_json: Optional[str] = "{}"
     matched_trend_url: Optional[str] = ""
     matched_science_url: Optional[str] = ""
+    matched_social_url: Optional[str] = ""
+    reasoning: Optional[str] = ""
+    critic_comment: Optional[str] = ""
+    hook_evaluations_json: Optional[str] = "[]"
 
 @app.post("/api/save")
 async def save_inspiration(req: SaveRequest):
@@ -320,6 +335,105 @@ async def evaluate_science(req: EvaluateRequest):
         "is_blacklisted": is_blacklisted,
         "stars": "★" * score + "☆" * (3 - score)
     }
+
+
+# ─── Manual Upload API (手動新增資料) ───
+
+@app.post("/api/manual/science")
+async def manual_add_science(
+    title: str = Form(...),
+    url: str = Form(""),
+    abstract: str = Form(""),
+    pdf_file: UploadFile = File(None)
+):
+    """手動新增科學論文至資料庫。PDF 存本地，abstract 用 LLM 提取 mechanism/category。"""
+    import time as _time
+    try:
+        # 處理 URL — 若留空自動生成
+        if not url.strip():
+            url = f"manual://science-{int(_time.time())}"
+
+        # 處理 PDF 上傳
+        pdf_path = ""
+        if pdf_file and pdf_file.filename:
+            content = await pdf_file.read()
+            
+            try:
+                # 預先檢查 PDF 是否可讀
+                extract_text_from_bytes(content)
+            except UnreadablePDFError as e:
+                return {"status": "unreadable_pdf", "message": str(e)}
+                
+            os.makedirs(os.path.join(os.path.dirname(__file__), "data", "pdfs"), exist_ok=True)
+            safe_name = f"{int(_time.time())}_{pdf_file.filename}"
+            save_path = os.path.join(os.path.dirname(__file__), "data", "pdfs", safe_name)
+            with open(save_path, "wb") as f:
+                f.write(content)
+            pdf_path = save_path
+            print(f"[Manual] PDF saved to {save_path}")
+
+        # 用 abstract 提取 mechanism + category
+        article_data = {
+            "title": title,
+            "summary": abstract or "(No abstract provided)",
+            "url": url,
+            "source": "手動上傳",
+            "pipeline": "Manual",
+            "credibility_score": 1,
+            "pdf_path": pdf_path
+        }
+
+        # 若有 abstract，嘗試用 LLM 提取 mechanism / category
+        if abstract.strip():
+            try:
+                enriched = extract_science_mechanisms([article_data])
+                if enriched:
+                    article_data = enriched[0]
+            except Exception as e:
+                print(f"⚠️ 手動上傳 LLM 提取失敗 (非致命): {e}")
+                article_data["mechanism"] = ""
+                article_data["category"] = ""
+        else:
+            article_data["mechanism"] = ""
+            article_data["category"] = ""
+
+        result = store.save_science([article_data])
+        return {"status": "success", "message": f"科學論文已新增", **result}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"新增失敗：{str(e)}")
+
+
+class ManualSocialRequest(BaseModel):
+    title: str
+    summary: str
+    url: Optional[str] = ""
+    category: Optional[str] = "meme"
+
+@app.post("/api/manual/social")
+async def manual_add_social(req: ManualSocialRequest):
+    """手動新增迷因/社群內容至資料庫。"""
+    import time as _time
+    try:
+        item_url = req.url.strip() if req.url else f"manual://social-{int(_time.time())}"
+
+        item = {
+            "title": req.title,
+            "summary": req.summary,
+            "url": item_url,
+            "source": "手動上傳",
+            "category": req.category or "meme",
+            "is_short": False,
+            "mechanism": "",
+            "matched_keywords": [],
+            "thumbnail": ""
+        }
+
+        result = store.save_social([item])
+        return {"status": "success", "message": "迷因已新增", **result}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"新增失敗：{str(e)}")
 
 
 if __name__ == "__main__":
