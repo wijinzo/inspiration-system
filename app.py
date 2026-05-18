@@ -152,27 +152,158 @@ class BuildScriptRequest(BaseModel):
     social_url: Optional[str] = ""
     hook_text: str
 
+
+def _validate_pdf_content(science_text: str, web_article_text: str, science_url: str) -> str:
+    """
+    驗證下載的 PDF/全文是否為正確論文。
+    比對策略（依優先順序）：
+    1. 有 paper_doi → 用 regex 從 PDF 中擷取 DOI，精確比對
+    2. 有 paper_title → 用關鍵字命中率比對（閾值 0.4）
+    3. 兩者皆無 → 無法驗證，直接 fallback 到 web_article_text
+
+    回傳：通過驗證的 science_text，或 fallback 的 web_article_text
+    """
+    import re
+
+    # 從 DB 取得正確的 paper_doi 與 paper_title
+    science_article = store.get_science_by_url(science_url)
+    paper_doi = (science_article or {}).get("paper_doi", "").strip()
+    paper_title = (science_article or {}).get("paper_title", "").strip()
+
+    pdf_head = science_text[:5000]  # 只掃前 5000 字元（論文標題/摘要通常在開頭）
+    print(f"[PDF 驗證] 開始驗證 PDF 正確性...")
+    print(f"[PDF 驗證] 預期 DOI: {paper_doi or '(無)'} | 預期論文標題: {paper_title or '(無)'}")
+
+    # === 情境 1：有 DOI → regex 精確比對 ===
+    if paper_doi:
+        doi_pattern = r'\b(10\.\d{4,9}/[-._;()/:a-zA-Z0-9]+)\b'
+        found_dois = re.findall(doi_pattern, pdf_head, re.IGNORECASE)
+        # 標準化比較（去掉結尾可能多出的標點）
+        paper_doi_clean = paper_doi.strip(".")
+        for found_doi in found_dois:
+            if found_doi.strip(".").lower() == paper_doi_clean.lower():
+                print(f"[PDF 驗證] DOI 比對通過: {found_doi}")
+                return science_text
+        if found_dois:
+            print(f"[PDF 驗證] 警告：PDF 中找到 DOI {found_dois[0]}，但與預期 DOI {paper_doi} 不符！")
+        else:
+            # PDF 中找不到 DOI（例如 trafilatura 全文），降級到 paper_title 比對
+            print(f"[PDF 驗證] PDF 中未找到 DOI，改用論文標題比對...")
+            if paper_title:
+                return _validate_by_title(science_text, web_article_text, paper_title, pdf_head)
+            else:
+                print(f"[PDF 驗證] 無 paper_title 可比對，fallback 到 ScienceDaily 介紹文章。")
+                return web_article_text
+        # DOI 存在但不匹配 → fallback
+        print(f"[PDF 驗證] DOI 不匹配，fallback 到 ScienceDaily 介紹文章。")
+        return web_article_text
+
+    # === 情境 2：無 DOI，但有 paper_title ===
+    if paper_title:
+        return _validate_by_title(science_text, web_article_text, paper_title, pdf_head)
+
+    # === 情境 3：兩者皆無 → 直接 fallback ===
+    print(f"[PDF 驗證] 無 DOI 也無 paper_title，無法驗證 PDF 正確性，fallback 到 ScienceDaily 介紹文章。")
+    return web_article_text
+
+
+def _validate_by_title(science_text: str, web_article_text: str, paper_title: str, pdf_head: str, threshold: float = 0.4) -> str:
+    """
+    用 paper_title 關鍵字比對驗證 PDF 內容正確性。
+    取標題中長度 > 4 的核心英文詞彙，計算在 PDF 開頭的命中率。
+    """
+    # 去掉常見停用詞，只保留有意義的名詞/動詞
+    stopwords = {"with", "that", "this", "from", "into", "have", "been", "their",
+                 "which", "through", "using", "after", "between", "during"}
+    title_words = [w.lower() for w in paper_title.split() if len(w) > 4 and w.lower() not in stopwords]
+
+    if not title_words:
+        print(f"[PDF 驗證] paper_title 過短或全為停用詞，無法比對，fallback。")
+        return web_article_text
+
+    pdf_head_lower = pdf_head.lower()
+    matched = sum(1 for w in title_words if w in pdf_head_lower)
+    ratio = matched / len(title_words)
+    print(f"[PDF 驗證] 標題關鍵字比對：{matched}/{len(title_words)} 命中，命中率 {ratio:.2f}（閾值 {threshold}）")
+
+    if ratio >= threshold:
+        print(f"[PDF 驗證] 標題比對通過，使用 PDF 內容。")
+        return science_text
+    else:
+        print(f"[PDF 驗證] 標題比對失敗，PDF 可能下載錯誤，fallback 到 ScienceDaily 介紹文章。")
+        return web_article_text
+
 @app.post("/api/build_script")
 async def build_script(req: BuildScriptRequest):
     """
     雙大腦生腳本流程：拉全文 -> 提取迷因 -> Agent 1 拆解加比喻 -> Agent 2 生成泛科學腳本
     """
     try:
-        # 1. 抓取全文 — 優先使用本地 PDF
+        # 0. 即時萃取論文標題與 DOI (若資料庫尚無紀錄)
+        science_article = store.get_science_by_url(req.science_url)
+        if science_article and not science_article.get("paper_doi"):
+            from crawlers.article_scraper import extract_paper_metadata
+            meta = extract_paper_metadata(req.science_url)
+            if meta.get("doi") or meta.get("paper_title"):
+                store.update_science_paper_metadata(req.science_url, meta.get("paper_title", ""), meta.get("doi", ""))
+                print(f"[build_script] 已即時擷取並儲存 DOI: {meta.get('doi')} / 標題: {meta.get('paper_title')}")
+                
+        # 1. 嘗試從 OpenAlex 自動下載 PDF (若本地無檔案)
         pdf_path = store.get_pdf_path_by_url(req.science_url)
+        
+        if not pdf_path or not os.path.exists(pdf_path):
+            # 從 DB 讀取最新的 metadata (因為 Step 0 可能剛寫入 DOI)
+            science_article = store.get_science_by_url(req.science_url)
+            if science_article:
+                paper_title = science_article.get("paper_title", "")
+                paper_doi = science_article.get("paper_doi", "")
+                if paper_title or paper_doi:
+                    from crawlers.pdf_downloader import fetch_pdf_from_openalex
+                    new_pdf_path = fetch_pdf_from_openalex(title=paper_title, doi=paper_doi)
+                    if new_pdf_path:
+                        store.update_science_pdf_path(req.science_url, new_pdf_path)
+                        pdf_path = new_pdf_path
+                        
+        # 2. 抓取全文 — 優先使用 PDF (包含剛下載的)
+        use_web_fallback = False
         if pdf_path and os.path.exists(pdf_path):
             print(f"[build_script] 使用本地 PDF: {pdf_path}")
             try:
-                science_text = extract_text_from_pdf(pdf_path)
-                if not science_text:
-                    raise HTTPException(status_code=400, detail="本地 PDF 解析失敗，無法提取文字")
+                # 若 downloader 存的是 .txt（trafilatura 全文擷取），直接讀取
+                if pdf_path.endswith(".txt"):
+                    with open(pdf_path, "r", encoding="utf-8") as f:
+                        science_text = f.read()
+                    print(f"[build_script] 讀取 trafilatura 擷取的全文 ({len(science_text)} 字元)")
+                    if not science_text:
+                        use_web_fallback = True
+                else:
+                    science_text = extract_text_from_pdf(pdf_path)
+                    if not science_text:
+                        use_web_fallback = True
+                        print("⚠️ 爬取 PDF 失敗（解析出空文字），轉向使用網頁原文擷取。")
             except UnreadablePDFError as e:
-                return {"status": "unreadable_pdf", "message": str(e)}
+                use_web_fallback = True
+                print(f"⚠️ 爬取 PDF 失敗（掃描檔或亂碼：{e}），轉向使用網頁原文擷取。")
         else:
-            scrape_res = scrape_sciencedaily_article(req.science_url)
-            if not scrape_res["success"]:
-                raise HTTPException(status_code=400, detail=f"科學原稿爬取失敗: {scrape_res['error']}")
-            science_text = scrape_res["text"]
+            use_web_fallback = True
+            print("⚠️ 爬取 PDF 失敗（可能受付費牆保護或無資源），轉向使用網頁原文擷取。")
+            
+        # 3. 無論如何都爬取網頁文章（作為新聞框架參考，或當作 Fallback）
+        scrape_res = scrape_sciencedaily_article(req.science_url)
+        if not scrape_res["success"]:
+            raise HTTPException(status_code=400, detail=f"科學原稿爬取失敗: {scrape_res['error']}")
+        
+        web_article_text = scrape_res["text"]
+        
+        if use_web_fallback:
+            science_text = web_article_text
+        else:
+            # === PDF 內容驗證：確認下載的 PDF 是否為正確論文 ===
+            science_text = _validate_pdf_content(
+                science_text=science_text,
+                web_article_text=web_article_text,
+                science_url=req.science_url
+            )
         # 從資料庫撈出先前由 science_crawler 存入的正式標題，若無則降級使用當次爬蟲找到的標籤
         science_title = store.get_science_title_by_url(req.science_url)
         if not science_title:
@@ -197,7 +328,8 @@ async def build_script(req: BuildScriptRequest):
             hook_text=req.hook_text,
             template_text=template_text,
             article_title=science_title,
-            article_url=req.science_url
+            article_url=req.science_url,
+            web_article_text=web_article_text
         )
         
         return {"status": "success", "script": script_markdown}

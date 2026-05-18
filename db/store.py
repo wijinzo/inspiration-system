@@ -61,6 +61,16 @@ def init_db():
     except:
         pass  # Column already exists
 
+    # Add paper metadata columns if not exists (migration)
+    try:
+        cursor.execute("ALTER TABLE science_articles ADD COLUMN paper_title TEXT DEFAULT ''")
+    except:
+        pass
+    try:
+        cursor.execute("ALTER TABLE science_articles ADD COLUMN paper_doi TEXT DEFAULT ''")
+    except:
+        pass
+
     # 2. 社群時事表 (YouTube/Dcard等)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS social_items (
@@ -162,17 +172,20 @@ def save_science(articles: list) -> dict:
         pdf_path = a.get("pdf_path", "")
         c.execute('''
             INSERT INTO science_articles 
-            (title, summary, url, source, pipeline, mechanism, category, pdf_path, credibility_score)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (title, summary, url, source, pipeline, mechanism, category, pdf_path, credibility_score, paper_title, paper_doi)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(url) DO UPDATE SET 
             mechanism=excluded.mechanism,
             category=excluded.category,
             pdf_path=CASE WHEN excluded.pdf_path != '' THEN excluded.pdf_path ELSE science_articles.pdf_path END,
-            credibility_score=excluded.credibility_score
+            credibility_score=excluded.credibility_score,
+            paper_title=CASE WHEN excluded.paper_title != '' THEN excluded.paper_title ELSE science_articles.paper_title END,
+            paper_doi=CASE WHEN excluded.paper_doi != '' THEN excluded.paper_doi ELSE science_articles.paper_doi END
         ''', (
             a["title"], a.get("summary", ""), a["url"], 
             a.get("source", ""), a.get("pipeline", ""),
-            a.get("mechanism", ""), a.get("category", ""), pdf_path, a.get("credibility_score", 1)
+            a.get("mechanism", ""), a.get("category", ""), pdf_path, a.get("credibility_score", 1),
+            a.get("paper_title", ""), a.get("paper_doi", "")
         ))
         if exists:
             updated += 1
@@ -514,6 +527,34 @@ def get_pdf_path_by_url(url: str) -> str:
     if row and row[0]:
         return row[0]
     return ""
+
+def update_science_paper_metadata(url: str, paper_title: str, paper_doi: str) -> bool:
+    """即時更新科學文獻的論文標題與 DOI"""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('''
+        UPDATE science_articles 
+        SET paper_title = ?, paper_doi = ? 
+        WHERE url = ?
+    ''', (paper_title, paper_doi, url))
+    affected = c.rowcount
+    conn.commit()
+    conn.close()
+    return affected > 0
+
+def update_science_pdf_path(url: str, pdf_path: str) -> bool:
+    """即時更新科學文獻的本地 PDF 路徑"""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('''
+        UPDATE science_articles 
+        SET pdf_path = ? 
+        WHERE url = ?
+    ''', (pdf_path, url))
+    affected = c.rowcount
+    conn.commit()
+    conn.close()
+    return affected > 0
 
 # 建立表格
 init_db()

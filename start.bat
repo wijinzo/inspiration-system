@@ -39,6 +39,10 @@ if not exist venv\Scripts\activate.bat (
 ) else (
     echo [INFO] Activating environment...
     call venv\Scripts\activate.bat
+    echo [INFO] Checking for missing packages...
+    pip install -r requirements.txt --quiet
+    echo [INFO] Dependencies up to date.
+    echo.
 )
 
 REM 3. Database check
