@@ -8,6 +8,7 @@
 ## 🚀 核心特色
 
 - **🔬 科學先決管線**：從頂級期刊 (Nature, Science, ScienceDaily) 萃取底層機制，附帶可信度星級評分 (★★★)
+- **📄 智慧 PDF 文獻獲取**：整合 OpenAlex API 與三層 Fallback 爬取策略（支援解析 Elsevier/ScienceDirect），自動下載並解析學術論文 PDF 原文供腳本撰寫參考。
 - **🎯 三軌資料來源**：
   - **時事軌**：自由時報 / 公視 RSS + Google Trends RSS → LLM 過濾政治八卦 → 提取底層運作機制
   - **科學軌**：5 大國際科學 RSS + Brave Search 動態檢索 → 白黑名單過濾 → 全文解析
@@ -17,6 +18,8 @@
   - **Critic**：替換測試 (Substitution Test) + 三維評分，最多 3 回合迭代，門檻分數 ≥ 8
 - **🎲 Surprise Me!**：一鍵隨機科學文獻 × 自動配對，打破創作瓶頸
 - **💾 解耦爬取/生成**：爬取結果持久化至 SQLite，支援無限捲動分頁，不必每次重新抓取
+- **🤖 雙agent 腳本撰寫**：Agent1針對科學文獻中硬核內容，並連結迷因梗產生生活化、動漫梗比喻，Agent2基於Agent1的內容、腳本範例，進行腳本撰寫，最後提交word檔案供編輯初步參考。
+
 
 ---
 
@@ -46,7 +49,10 @@ project_root/
 ├── crawlers/
 │   ├── trend_crawler.py      # Module 1: 台灣新聞 RSS + Google Trends + LLM 過濾
 │   ├── science_crawler.py    # Module 2: 科學 RSS + Brave Search + 全文解析 + 信譽評分
-│   └── social_crawler.py     # Module 3: 瓦特兄弟官網 + YouTube 頻道 (木棉花/搞完君) + 動漫梗提取
+│   ├── social_crawler.py     # Module 3: 瓦特兄弟官網 + YouTube 頻道 (木棉花/搞完君) + 動漫梗提取
+│   ├── article_scraper.py    # ScienceDaily 等特定網站爬蟲解析
+│   ├── pdf_downloader.py     # 智慧 PDF 下載器 (OpenAlex + 網頁全文抓取)
+│   └── pdf_parser.py         # PDF 轉文字解析器 (PyMuPDF)
 ├── engine/
 │   ├── pipeline.py           # V3 Science-First Proposer-Critic 引擎
 │   └── vector_matching.py    # Legacy V2 ChromaDB 配對 (備用)
@@ -116,7 +122,7 @@ YOUTUBE_API_KEY=您的YouTube金鑰
 ### 方法 A：全自動啟動 (推薦)
 
 直接雙擊 `start.bat`，啟動器會自動檢測並執行以下流程：
-1. **自動環境設置**：若無 `venv` 則自動建立並安裝 `requirements.txt`。
+1. **自動環境設置**：若無 `venv` 則自動建立並安裝。若後續有新增套件至 `requirements.txt`，每次啟動均會自動補裝。
 2. **自動配置檢查**：若無 `.env` 則自動複製 `.env.example`。
 3. **自動資料初始化**：若無 `articles.db` 則自動執行 `populate_db.py` 進行首次爬取。
 4. **自動開啟服務**：啟動 FastAPI 後端並自動開啟瀏覽器。
