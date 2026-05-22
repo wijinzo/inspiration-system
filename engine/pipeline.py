@@ -145,20 +145,20 @@ def _gather_target_data(locked_items: dict) -> dict:
     """從資料庫獲取目標項目（如果 locked 則抓精準目標，否則自動挑選最好的）"""
     result = {"science": None, "trend": None, "social": None}
     
-    science_db = store.fetch_latest_science().get("data", [])
     if locked_items.get("science_url"):
-        result["science"] = next((item for item in science_db if item["url"] == locked_items["science_url"]), None)
-    elif science_db:
-        # 預設：選分數最高、最新的
-        result["science"] = sorted(science_db, key=lambda x: x.get('credibility_score', 1), reverse=True)[0]
+        # 精確查詢，不受分頁 limit 限制（修正：舊文章超出前15筆導致找不到的問題）
+        result["science"] = store.get_science_by_url(locked_items["science_url"])
+    else:
+        # 預設：選分數最高、最新的（前 50 筆裡找）
+        science_db = store.fetch_latest_science(limit=50).get("data", [])
+        if science_db:
+            result["science"] = sorted(science_db, key=lambda x: x.get('credibility_score', 1), reverse=True)[0]
         
-    trend_db = store.fetch_latest_trends().get("data", [])
     if locked_items.get("trend_url"):
-        result["trend"] = next((item for item in trend_db if item["url"] == locked_items["trend_url"]), None)
+        result["trend"] = store.get_trend_by_url(locked_items["trend_url"])
         
-    social_db = store.fetch_latest_social().get("data", [])
     if locked_items.get("social_url"):
-        result["social"] = next((item for item in social_db if item["url"] == locked_items["social_url"]), None)
+        result["social"] = store.get_social_by_url(locked_items["social_url"])
         
     return result
 
