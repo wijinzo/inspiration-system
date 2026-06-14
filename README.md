@@ -25,7 +25,7 @@ Critic 執行「魔法替換測試」+ 三維評分（科學先決/吸引力/格
 通過 → 輸出最佳 Hook + 評審報告
 ```
 
-### ✍️ 雙 Agent 腳本生成（新功能）
+### ✍️ 雙 Agent 腳本生成
 選定 Hook 後，一鍵啟動兩階段深度撰稿：
 
 | Agent | 角色 | 任務 |
@@ -57,7 +57,7 @@ Critic 執行「魔法替換測試」+ 三維評分（科學先決/吸引力/格
 | 前端 | Vanilla HTML / CSS / JS（Glassmorphism 深色模式） |
 | LLM | Google Gemini (`gemini-3-flash-preview`) via LangChain |
 | 資料庫 | SQLite（6 表持久化）+ ChromaDB（向量配對，備用） |
-| 爬蟲 | YouTube Data API v3, Brave Search API, Feedparser, BeautifulSoup, trafilatura |
+| 爬蟲 | YouTube Data API v3, Brave Search API, Feedparser, BeautifulSoup, trafilatura, cloudscraper |
 | PDF | PyMuPDF（`fitz`）解析 + OpenAlex API 自動下載 |
 | 匯出 | python-docx（Markdown → DOCX） |
 
@@ -67,7 +67,7 @@ Critic 執行「魔法替換測試」+ 三維評分（科學先決/吸引力/格
 
 ```text
 project_root/
-├── app.py                    # FastAPI 主應用（18 條 API 路由）
+├── app.py                    # FastAPI 主應用（19 條 API 路由）
 ├── config.py                 # 集中設定（模型/RSS/頻道/白黑名單/星級/DB路徑）
 ├── populate_db.py            # 一鍵爬取填充資料庫
 ├── start.bat                 # 雙擊一鍵啟動（自動啟用 venv + 開啟瀏覽器）
@@ -133,7 +133,7 @@ project_root/
 | `POST` | `/api/crawl/trends` | 觸發時事爬蟲 |
 | `POST` | `/api/crawl/social` | 觸發社群爬蟲 |
 | `POST` | `/api/crawl/science` | 觸發科學爬蟲 |
-| `POST` | `/api/crawl/all` | 全部爬取 |
+| `POST` | `/api/crawl/all` | 全部爬取（依序執行三軌） |
 
 ### 生成與腳本
 | Method | Route | 說明 |
@@ -248,7 +248,9 @@ TARGET_SOCIAL_CHANNELS = [
 ]
 ```
 
-**`category` 可用值：** `anime` / `gaming_meme` / `social_trend` / `meme`
+> **注意**：瓦特兄弟官網（`WATTBROTHER_URL`）採用**網頁爬取**而非 YouTube API，設定在 `config.py` 的 `WATTBROTHER_URL` 欄位。
+
+**`category` 可用值：** `anime` / `gaming_meme` / `social_trend` / `meme`  
 標記為 `anime` 的頻道會自動觸發「動漫梗提取」流程，且每次爬取的梗解析結果均累積保留（不覆蓋舊資料）。
 
 ---
@@ -274,9 +276,15 @@ TARGET_SOCIAL_CHANNELS = [
 | `BRAVE_API_KEY` | `.env` | Brave Search 動態科學檢索 |
 | `YOUTUBE_API_KEY` | `.env` | YouTube Data API v3 |
 | `MODEL_NAME` | `config.py` | Gemini 模型名稱（預設 `gemini-3-flash-preview`） |
+| `TEMPERATURE_FILTER` | `config.py` | 過濾/分析用溫度（預設 `0.1`，低溫度 = 精確） |
+| `TEMPERATURE_CREATIVE` | `config.py` | 生成 Hook 用溫度（預設 `0.7`，高溫度 = 創意） |
 | `CRITIC_THRESHOLD` | `config.py` | Critic 通過門檻（預設 8 分） |
 | `MAX_DEBATE_RETRIES` | `config.py` | Proposer 最多重試次數（預設 3 回合） |
 | `BRAVE_SCIENCE_QUERIES` | `config.py` | 每次爬取最多 Brave 查詢次數（預設 3，節省 API 額度） |
+| `BRAVE_RETRY_MAX` | `config.py` | Brave API 重試次數上限（預設 3） |
+| `BRAVE_RETRY_BACKOFF` | `config.py` | 重試延遲（秒），預設 `[1, 2, 4]` |
+| `DAILYVIEW_URL` | `config.py` | 網路溫度計爬取 URL（舊 API 已失效，改用網頁爬取） |
+| `WATTBROTHER_URL` | `config.py` | 瓦特兄弟官網 URL（網頁爬取） |
 
 ---
 
